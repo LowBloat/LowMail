@@ -19,15 +19,51 @@ async fn main() -> anyhow::Result<()> {
         "serve" => serve(Config::from_env()?).await,
         "healthcheck" => healthcheck().await,
         "demo" => demo().await,
+        "check" => check().await,
         "--version" | "-V" | "version" => {
             println!("lowmail {}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
         _ => {
-            eprintln!("usage: lowmail [serve|healthcheck|demo|version]\nSettings come from LOWMAIL_* environment variables (see README).");
+            eprintln!(
+                "usage: lowmail [serve|check|healthcheck|demo|version]\n  lowmail check <address> [--send-to <address>]   test an account against the configured servers\nSettings come from LOWMAIL_* environment variables (see README)."
+            );
             std::process::exit(2);
         }
     }
+}
+
+/// `lowmail check <address> [--send-to <address>]`. The password comes from
+/// LOWMAIL_CHECK_PASSWORD or is asked without echo.
+async fn check() -> anyhow::Result<()> {
+    let args: Vec<String> = std::env::args().skip(2).collect();
+    let mut email = None;
+    let mut send_to = None;
+    let mut i = 0;
+    while i < args.len() {
+        if args[i] == "--send-to" {
+            send_to = args.get(i + 1).cloned();
+            i += 2;
+        } else {
+            email = Some(args[i].clone());
+            i += 1;
+        }
+    }
+    let email = match email {
+        Some(e) => e,
+        None => {
+            eprint!("E-mail address: ");
+            let mut line = String::new();
+            std::io::stdin().read_line(&mut line)?;
+            line.trim().to_string()
+        }
+    };
+    let password = match std::env::var("LOWMAIL_CHECK_PASSWORD") {
+        Ok(p) if !p.is_empty() => p,
+        _ => rpassword::prompt_password(format!("Password for {email}: ")).context("reading the password")?,
+    };
+    let ok = lowmail_server::check::run(Config::from_env()?, &email, password, send_to).await;
+    std::process::exit(if ok { 0 } else { 1 });
 }
 
 async fn healthcheck() -> anyhow::Result<()> {

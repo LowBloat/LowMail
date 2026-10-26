@@ -37,7 +37,13 @@ docker compose up -d --build
 docker compose logs -f lowmail
 ```
 
-Teste em `http://<servidor>:8480` com uma conta real antes de trocar o endereço público.
+Antes de trocar o endereço público, rode a verificação com uma conta de teste. Ela pede a senha sem mostrá-la, testa pastas, leitura, busca, rascunho (apagado depois), pasta temporária (apagada depois), filtros (só leitura) e login no SMTP; `--send-to` envia uma mensagem de teste:
+
+```sh
+docker compose run --rm -it lowmail check teste@exemplo.com.br --send-to teste@exemplo.com.br
+```
+
+Depois teste em `http://<servidor>:8480` pelo navegador.
 
 ## 3. Coloque atrás do HTTPS
 

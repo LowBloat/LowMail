@@ -61,6 +61,14 @@ cargo build --release -p lowmail-server
 LOWMAIL_IMAP_HOST=mail.example.com LOWMAIL_DOMAIN=example.com ./target/release/lowmail serve
 ```
 
+### Check an account before going live
+
+`lowmail check` signs in with one account and runs what the webmail does: folders and their roles, the inbox list, reading, search, sorting, quota, a temporary folder, a draft (both removed afterwards), the filters (read only) and the SMTP sign-in. `--send-to` also sends one test message. It asks for the password without echo (or reads `LOWMAIL_CHECK_PASSWORD`) and uses the same `LOWMAIL_*` settings as the server:
+
+```sh
+docker compose run --rm -it lowmail check user@example.com --send-to user@example.com
+```
+
 ### Settings
 
 | Variable | Default | Meaning |
