@@ -200,10 +200,38 @@ impl Conn {
                 self.raw(&format!("UID EXPUNGE {}", uid_set(chunk))).await?;
             }
         } else {
-            self.raw("EXPUNGE").await?;
+            // Plain EXPUNGE removes every \Deleted message. Messages another
+            // client flagged must survive, so they lose the flag meanwhile.
+            let mut others: Vec<u32> = Vec::new();
+            self.raw_each("UID SEARCH DELETED", |resp| {
+                if let Response::MailboxData(MailboxDatum::Search(list)) = resp {
+                    others.extend(list.iter().copied().filter(|u| !uids.contains(u)));
+                }
+            })
+            .await?;
+            for chunk in others.chunks(CHUNK) {
+                self.raw(&format!("UID STORE {} -FLAGS.SILENT (\\Deleted)", uid_set(chunk))).await?;
+            }
+            let expunged = self.raw("EXPUNGE").await;
+            for chunk in others.chunks(CHUNK) {
+                let _ = self.raw(&format!("UID STORE {} +FLAGS.SILENT (\\Deleted)", uid_set(chunk))).await;
+            }
+            expunged?;
         }
         self.drain_unsolicited();
         Ok(())
+    }
+
+    /// Leaves the selected folder without expunging it (CLOSE would).
+    pub async fn unselect(&mut self) {
+        if self.selected.take().is_some() {
+            if self.caps.has("UNSELECT") {
+                let _ = self.raw("UNSELECT").await;
+            } else {
+                // Selecting another folder deselects without expunging.
+                let _ = self.raw("EXAMINE INBOX").await;
+            }
+        }
     }
 
     pub async fn delete_uids(&mut self, uids: &[u32]) -> Result<()> {
@@ -290,7 +318,7 @@ pub fn flags_of<'a>(flags: impl Iterator<Item = Flag<'a>>) -> Flags {
                 match lower.as_str() {
                     "$forwarded" => out.forwarded = true,
                     "$junk" | "junk" => out.junk = true,
-                    "$notjunk" | "notjunk" | "nonjunk" | "$mdnsent" | "\\recent" => {}
+                    "$notjunk" | "notjunk" | "nonjunk" | "\\recent" => {}
                     _ if !k.starts_with('\\') => out.keywords.push(k.to_string()),
                     _ => {}
                 }

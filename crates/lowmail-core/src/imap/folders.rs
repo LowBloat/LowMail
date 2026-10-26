@@ -140,8 +140,7 @@ impl Conn {
 
     pub async fn rename_folder(&mut self, from: &str, to: &str) -> Result<()> {
         if self.selected.as_ref().is_some_and(|s| s.path == from) {
-            let _ = self.session.close().await;
-            self.selected = None;
+            self.unselect().await;
         }
         self.session.rename(from, to).await?;
         let _ = self.session.unsubscribe(from).await;
@@ -151,8 +150,7 @@ impl Conn {
 
     pub async fn delete_folder(&mut self, path: &str) -> Result<()> {
         if self.selected.as_ref().is_some_and(|s| s.path == path) {
-            let _ = self.session.close().await;
-            self.selected = None;
+            self.unselect().await;
         }
         let _ = self.session.unsubscribe(path).await;
         self.session.delete(path).await?;

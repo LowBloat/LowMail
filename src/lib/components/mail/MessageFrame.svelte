@@ -21,7 +21,7 @@
 		const csp = `default-src 'none'; img-src data: cid:${remoteSrc}; style-src 'unsafe-inline'${remoteSrc}; font-src data:${remoteSrc}; media-src data:`;
 		const colors = darkText ? "color:#fbfcf8;background:#1d221c" : "color:#171a17;background:#ffffff";
 		const quote = darkText ? "#41473e" : "#a9b1a5";
-		return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="no-referrer"><base target="_blank"><style>
+		return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="no-referrer"><meta http-equiv="x-dns-prefetch-control" content="off"><style>
 html{${colors}}
 body{margin:0;padding:18px 22px;font:14px/1.55 "Inter Variable",Inter,"Segoe UI",system-ui,sans-serif;overflow-wrap:break-word;${colors}}
 img{max-width:100%;height:auto}
@@ -51,6 +51,10 @@ blockquote[type=cite]{margin:0 0 0 .8ex;padding-left:1ex;border-left:2px solid $
 		for (const a of Array.from(d.querySelectorAll<HTMLAnchorElement>("a[href]"))) {
 			if (!a.title) a.title = a.getAttribute("href") ?? "";
 		}
+		// Middle clicks would open links inside the app.
+		d.addEventListener("auxclick", (e) => {
+			if ((e.target as Element | null)?.closest?.("a[href]")) e.preventDefault();
+		});
 		d.addEventListener("click", (e) => {
 			const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
 			if (!a) return;
@@ -74,7 +78,7 @@ blockquote[type=cite]{margin:0 0 0 .8ex;padding-left:1ex;border-left:2px solid $
 	class="lm-frame"
 	{title}
 	srcdoc={doc}
-	sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+	sandbox="allow-same-origin"
 	referrerpolicy="no-referrer"
 	style:height="{height}px"
 	onload={onLoad}

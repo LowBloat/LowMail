@@ -379,3 +379,19 @@ async fn moves_can_be_undone() {
     assert_eq!(c.list("INBOX", 0, 1, &Sort::default(), &Filter::default()).await.unwrap().total, total);
     assert!(c.delete_messages("INBOX", &page.uids[2..3], true).await.unwrap().is_none());
 }
+
+#[tokio::test]
+async fn reused_connection_sees_new_messages() {
+    let (server, _) = setup().await;
+    // One connection only, so the same session keeps Trash selected.
+    let one =
+        MailClient::connect(account(&server, "alice@lowmail.test"), "alice".into(), Arc::new(Store::memory().unwrap()), "x".into(), 1)
+            .await
+            .unwrap();
+    let before = one.list("Trash", 0, 10, &Sort::default(), &Filter::default()).await.unwrap().total;
+    server.deliver("alice@lowmail.test", "Trash", b"From: a@example.com\r\nSubject: late\r\n\r\nx\r\n", &[]);
+    assert_eq!(one.list("Trash", 0, 10, &Sort::default(), &Filter::default()).await.unwrap().total, before + 1);
+    // And the folder actions that check the count work on it.
+    one.empty_folder("Trash").await.unwrap();
+    assert_eq!(one.list("Trash", 0, 10, &Sort::default(), &Filter::default()).await.unwrap().total, 0);
+}

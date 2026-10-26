@@ -123,8 +123,9 @@ async fn csrf(request: Request, next: Next) -> Response {
 fn client_ip(state: &AppState, addr: SocketAddr, headers: &HeaderMap) -> IpAddr {
     if state.config.trust_proxy
         && let Some(forwarded) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok())
-        && let Some(first) = forwarded.split(',').next()
-        && let Ok(ip) = first.trim().parse()
+        // The last entry is the one our proxy added; earlier ones come from the client.
+        && let Some(last) = forwarded.rsplit(',').next()
+        && let Ok(ip) = last.trim().parse()
     {
         return ip;
     }

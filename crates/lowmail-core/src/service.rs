@@ -371,7 +371,7 @@ impl MailClient {
         let limit = limit.clamp(1, 500);
         with_conn!(self.pool, true, |conn| {
             let sel = conn.select(folder).await?;
-            let uids = if sel.exists == 0 { Vec::new() } else { conn.sorted_uids(sort, filter).await? };
+            let uids = conn.sorted_uids(sort, filter).await?;
             let page: Vec<u32> = uids.iter().skip(offset as usize).take(limit as usize).copied().collect();
             let items = conn.fetch_summaries(folder, &page).await?;
             Ok(MessagePage { folder: folder.to_string(), uid_validity: sel.uid_validity, total: uids.len() as u32, offset, items, uids })
@@ -671,7 +671,8 @@ impl MailClient {
             });
         };
         let raw = self.raw(&source.folder, source.uid).await?;
-        let mut original = mime::parse_message(&raw, &source.folder, source.uid, Flags::default(), &ReadOptions { allow_remote: true })?;
+        let mut original =
+            mime::parse_message(&raw, &source.folder, source.uid, Flags::default(), &ReadOptions { allow_remote: style.remote_images })?;
         original.html = original.html.map(|h| sanitize::strip_style_blocks(&h));
         let mut draft = compose::prepare(mode, &original, source.clone(), &identities, style, html);
 

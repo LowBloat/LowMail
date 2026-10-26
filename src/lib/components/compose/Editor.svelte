@@ -141,6 +141,12 @@ a{color:#3d5c00}
 		updateStates();
 	}
 
+	/** Hands the current body over now, without waiting for the debounce. */
+	export function flush() {
+		clearTimeout(timer);
+		if (doc) onchange(doc.body.innerHTML);
+	}
+
 	export function focus() {
 		frame?.contentWindow?.focus();
 		doc?.body.focus();

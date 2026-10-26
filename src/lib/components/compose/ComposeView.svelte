@@ -12,6 +12,13 @@
 	import { toast } from "@codeatlasdev/ui";
 
 	let fileInput: HTMLInputElement | undefined = $state();
+	let editor: Editor | undefined = $state();
+
+	// Actions (send, save, close) take the last keystrokes from the editor.
+	$effect(() => {
+		compose.flushEditor = () => editor?.flush();
+		return () => (compose.flushEditor = null);
+	});
 	let dragging = $state(false);
 	let dragDepth = 0;
 
@@ -148,7 +155,7 @@
 
 		<div class="lm-compose__body">
 			{#if d.html !== null}
-				<Editor html={d.html ?? ""} version={compose.bodyVersion} onchange={(h) => d && (d.html = h)} onkeydown={onKeydown} placeholder={t("compose.bodyPlaceholder")} />
+				<Editor bind:this={editor} html={d.html ?? ""} version={compose.bodyVersion} onchange={(h) => d && (d.html = h)} onkeydown={onKeydown} placeholder={t("compose.bodyPlaceholder")} />
 			{:else}
 				<textarea class="lm-compose__plain" bind:value={d.text} spellcheck="true" aria-label={t("editor.body")} placeholder={t("compose.bodyPlaceholder")}></textarea>
 			{/if}

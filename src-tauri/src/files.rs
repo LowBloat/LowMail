@@ -38,6 +38,75 @@ fn safe_name(name: &str) -> String {
     }
 }
 
+/// File types that run code when opened with their default app.
+fn is_executable(name: &str) -> bool {
+    const RISKY: &[&str] = &[
+        "exe",
+        "com",
+        "scr",
+        "bat",
+        "cmd",
+        "pif",
+        "msi",
+        "msp",
+        "msix",
+        "appx",
+        "appxbundle",
+        "js",
+        "jse",
+        "vbs",
+        "vbe",
+        "wsf",
+        "wsh",
+        "ps1",
+        "psm1",
+        "hta",
+        "lnk",
+        "url",
+        "reg",
+        "cpl",
+        "jar",
+        "scf",
+        "inf",
+        "dll",
+        "sys",
+        "gadget",
+        "application",
+        "iso",
+        "img",
+        "vhd",
+        "vhdx",
+        "chm",
+        "xll",
+        "sh",
+        "command",
+        "app",
+        "pkg",
+        "dmg",
+        "desktop",
+        "appimage",
+        "run",
+        "bin",
+        "deb",
+        "rpm",
+    ];
+    let ext = name.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+    name.contains('.') && RISKY.contains(&ext.as_str())
+}
+
+/// Marks a file as downloaded from the Internet (Windows Mark of the Web),
+/// so Office opens it in Protected View and SmartScreen checks it.
+fn mark_from_internet(path: &std::path::Path) {
+    #[cfg(windows)]
+    {
+        let mut stream = path.as_os_str().to_owned();
+        stream.push(":Zone.Identifier");
+        let _ = std::fs::write(stream, "[ZoneTransfer]\r\nZoneId=3\r\n");
+    }
+    #[cfg(not(windows))]
+    let _ = path;
+}
+
 fn write(path: &PathBuf, bytes: &[u8]) -> Result<()> {
     std::fs::write(path, bytes).map_err(|e| Error::internal("The file could not be saved.").with_detail(e.to_string()))
 }
@@ -74,7 +143,11 @@ pub async fn attachment_save(
     let client = state.client(account_id.as_deref(), None).await?;
     let (name, _, bytes) = client.attachment(&folder, uid, &part).await?;
     match ask_save(&app, &safe_name(&name)).await {
-        Some(path) => write(&path, &bytes).map(|_| true),
+        Some(path) => {
+            write(&path, &bytes)?;
+            mark_from_internet(&path);
+            Ok(true)
+        }
         None => Ok(false),
     }
 }
@@ -98,8 +171,15 @@ pub async fn attachment_open(
         .join("attachments")
         .join(uuid::Uuid::new_v4().simple().to_string());
     std::fs::create_dir_all(&dir).map_err(|e| Error::internal("The temporary folder could not be created.").with_detail(e.to_string()))?;
-    let path = dir.join(safe_name(&name));
+    let name = safe_name(&name);
+    if is_executable(&name) {
+        return Err(Error::invalid(
+            "This kind of file can run programs on the computer, so LowMail does not open it. Save it and open it yourself only if you trust the sender.",
+        ));
+    }
+    let path = dir.join(&name);
     write(&path, &bytes)?;
+    mark_from_internet(&path);
     app.opener()
         .open_path(path.to_string_lossy(), None::<&str>)
         .map_err(|e| Error::internal("No app opens this kind of file.").with_detail(e.to_string()))
@@ -136,6 +216,9 @@ mod tests {
         assert_eq!(super::safe_name(".."), "attachment");
         assert_eq!(super::safe_name("a/b\\c.pdf"), "a_b_c.pdf");
         assert_eq!(super::safe_name("con.txt"), "attachment-con.txt");
+        assert!(super::is_executable("fatura.pdf.exe"));
+        assert!(super::is_executable("x.JS"));
+        assert!(!super::is_executable("fatura.pdf"));
         assert_eq!(super::safe_name("relatório: final?.pdf"), "relatório_ final_.pdf");
     }
 }

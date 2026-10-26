@@ -57,6 +57,10 @@ pub struct QuoteStyle {
     /// Reply above the quote (true) or below it.
     #[serde(default = "yes")]
     pub reply_on_top: bool,
+    /// Keep remote images of the original in the quote (the reader allowed
+    /// them); otherwise they are left out, so replying fires no tracker.
+    #[serde(default)]
+    pub remote_images: bool,
 }
 
 fn default_locale() -> String {
@@ -69,7 +73,7 @@ fn yes() -> bool {
 
 impl Default for QuoteStyle {
     fn default() -> Self {
-        QuoteStyle { locale: default_locale(), tz_offset_minutes: 0, reply_on_top: true }
+        QuoteStyle { locale: default_locale(), tz_offset_minutes: 0, reply_on_top: true, remote_images: false }
     }
 }
 

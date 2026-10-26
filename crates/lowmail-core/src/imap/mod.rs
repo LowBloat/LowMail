@@ -130,15 +130,13 @@ impl Conn {
     }
 
     /// Selects `path` unless it is already selected. A selected folder gets a
-    /// NOOP instead, so new and removed messages are seen.
+    /// NOOP instead; the EXISTS and EXPUNGE it brings keep the message count
+    /// current.
     pub async fn select(&mut self, path: &str) -> Result<Selected> {
-        if let Some(sel) = &self.selected
-            && sel.path == path
-        {
-            let sel = sel.clone();
+        if self.selected.as_ref().is_some_and(|s| s.path == path) {
             self.session.noop().await?;
-            self.drain_unsolicited();
-            return Ok(sel);
+            self.apply_unsolicited();
+            return Ok(self.selected.clone().expect("selected"));
         }
         self.selected = None;
         let mailbox = self.session.select(path).await.map_err(|e| {
@@ -161,10 +159,25 @@ impl Conn {
         Ok(sel)
     }
 
+    /// Applies the EXISTS/EXPUNGE the server sent on its own to the selected
+    /// folder's message count.
+    fn apply_unsolicited(&mut self) {
+        use async_imap::types::UnsolicitedResponse;
+        while let Ok(update) = self.session.unsolicited_responses.try_recv() {
+            if let Some(sel) = self.selected.as_mut() {
+                match update {
+                    UnsolicitedResponse::Exists(n) => sel.exists = n,
+                    UnsolicitedResponse::Expunge(_) => sel.exists = sel.exists.saturating_sub(1),
+                    _ => {}
+                }
+            }
+        }
+    }
+
     /// Forgets changes the server reported on its own; callers refetch what
     /// they show.
     pub fn drain_unsolicited(&mut self) {
-        while self.session.unsolicited_responses.try_recv().is_ok() {}
+        self.apply_unsolicited();
     }
 
     /// Runs a command and hands each untagged response, then the tagged OK,
@@ -187,6 +200,13 @@ impl Conn {
                     };
                 }
                 continue;
+            }
+            if let Some(sel) = self.selected.as_mut() {
+                match resp.parsed() {
+                    Response::MailboxData(async_imap::imap_proto::MailboxDatum::Exists(n)) => sel.exists = *n,
+                    Response::Expunge(_) => sel.exists = sel.exists.saturating_sub(1),
+                    _ => {}
+                }
             }
             each(resp.parsed());
         }

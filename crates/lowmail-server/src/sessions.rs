@@ -17,6 +17,9 @@ pub struct Session {
     last_seen: parking_lot::Mutex<Instant>,
 }
 
+/// Signed-in browsers per user.
+const MAX_SESSIONS_PER_USER: usize = 10;
+
 #[derive(Default)]
 pub struct Sessions {
     map: RwLock<HashMap<String, Arc<Session>>>,
@@ -27,8 +30,20 @@ impl Sessions {
         let mut bytes = [0u8; 32];
         rand::rng().fill_bytes(&mut bytes);
         let id = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
-        let session = Arc::new(Session { client, email, last_seen: parking_lot::Mutex::new(Instant::now()) });
-        self.map.write().insert(id.clone(), session);
+        let session = Arc::new(Session { client, email: email.clone(), last_seen: parking_lot::Mutex::new(Instant::now()) });
+        let mut map = self.map.write();
+        // A user keeps at most MAX_SESSIONS_PER_USER sessions; the least recently used go.
+        let mut mine: Vec<(String, Instant)> =
+            map.iter().filter(|(_, s)| s.email == email).map(|(k, s)| (k.clone(), *s.last_seen.lock())).collect();
+        if mine.len() >= MAX_SESSIONS_PER_USER {
+            mine.sort_by_key(|(_, t)| *t);
+            for (old, _) in mine.iter().take(mine.len() + 1 - MAX_SESSIONS_PER_USER) {
+                if let Some(s) = map.remove(old) {
+                    tokio::spawn(async move { s.client.close().await });
+                }
+            }
+        }
+        map.insert(id.clone(), session);
         id
     }
 

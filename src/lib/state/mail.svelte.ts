@@ -121,6 +121,9 @@ class MailState {
 	}
 
 	private reset() {
+		// Answers still on their way belong to the previous account.
+		this.listToken++;
+		this.closeMessage();
 		this.folders = [];
 		this.keys = [];
 		this.rows.clear();
@@ -387,7 +390,13 @@ class MailState {
 			if (token !== this.messageToken) return;
 			if (allowRemote === undefined && !remote && this.trustsSender(m) && m.remoteContent) {
 				// The sender is trusted but the summary was not loaded: ask again with images.
+				// The second load does the rest (read flag, receipt), once.
+				if (summary && !summary.flags.seen && delay === 0) {
+					summary.flags.seen = true;
+					this.adjustUnread(folder, -1);
+				}
 				void this.openMessage(key, true);
+				return;
 			}
 			this.message = m;
 			const wasUnread = summary && !summary.flags.seen;
@@ -476,7 +485,15 @@ class MailState {
 	private removeRows(keys: RowKey[]) {
 		const gone = new Set(keys);
 		const openGone = this.open !== null && gone.has(this.open);
-		const focusIndex = this.focused ? this.keys.indexOf(this.focused) : -1;
+		// The next row: the first one kept at or after the cursor, else the
+		// last one kept before it.
+		const before = this.keys;
+		const cursor = this.focused ?? this.open;
+		const at = cursor ? before.indexOf(cursor) : -1;
+		let next: RowKey | null = null;
+		if (at >= 0) {
+			next = before.slice(at).find((k) => !gone.has(k)) ?? [...before.slice(0, at)].reverse().find((k) => !gone.has(k)) ?? null;
+		}
 		for (const k of keys) {
 			const row = this.rows.get(k);
 			if (row && !row.flags.seen) this.adjustUnread(row.folder, -1);
@@ -489,7 +506,7 @@ class MailState {
 			this.selected.delete(k);
 			this.rows.delete(k);
 		}
-		const next = this.keys[Math.min(Math.max(focusIndex, 0), this.keys.length - 1)] ?? null;
+		next ??= this.keys[0] ?? null;
 		this.focused = next;
 		if (openGone) {
 			if (next && app.settings.layout !== "list") void this.openMessage(next);
