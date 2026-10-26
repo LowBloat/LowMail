@@ -5,9 +5,7 @@ mod common;
 use std::time::Duration;
 
 use async_imap::extensions::idle::IdleResponse;
-use async_imap::imap_proto::{
-    self, BodyStructure, MailboxDatum, Response, ResponseCode, Status, rfc4315::UidSetMember,
-};
+use async_imap::imap_proto::{self, BodyStructure, MailboxDatum, Response, ResponseCode, Status, rfc4315::UidSetMember};
 use async_imap::types::{Fetch, Flag, NameAttribute};
 use common::*;
 use futures::TryStreamExt;
@@ -20,11 +18,7 @@ macro_rules! raw_command {
         let id = $session.run_command($command).await.unwrap();
         let mut untagged = Vec::new();
         loop {
-            let resp = tokio::time::timeout(TIMEOUT, $session.read_response())
-                .await
-                .expect("timely response")
-                .unwrap()
-                .expect("response");
+            let resp = tokio::time::timeout(TIMEOUT, $session.read_response()).await.expect("timely response").unwrap().expect("response");
             if let Response::Done { tag, .. } = resp.parsed()
                 && *tag == id
             {
@@ -36,21 +30,13 @@ macro_rules! raw_command {
 }
 
 fn done_ok(resp: &Response<'_>) -> bool {
-    matches!(
-        resp,
-        Response::Done {
-            status: Status::Ok,
-            ..
-        }
-    )
+    matches!(resp, Response::Done { status: Status::Ok, .. })
 }
 
 /// Status and response code of a tagged response.
 fn done_parts<'a>(resp: &'a Response<'a>) -> (&'a Status, Option<&'a ResponseCode<'a>>) {
     match resp {
-        Response::Done {
-            status, outcome, ..
-        } => (status, outcome.code.as_ref()),
+        Response::Done { status, outcome, .. } => (status, outcome.code.as_ref()),
         other => panic!("tagged response expected, got {other:?}"),
     }
 }
@@ -69,77 +55,31 @@ async fn login_list_status_select() {
     let mut s = imap_login(&server, ALICE, "alice").await;
 
     let caps = s.capabilities().await.unwrap();
-    for cap in [
-        "IDLE",
-        "MOVE",
-        "UIDPLUS",
-        "SPECIAL-USE",
-        "SORT",
-        "LITERAL+",
-        "QUOTA",
-    ] {
+    for cap in ["IDLE", "MOVE", "UIDPLUS", "SPECIAL-USE", "SORT", "LITERAL+", "QUOTA"] {
         assert!(caps.has_str(cap), "missing capability {cap}");
     }
     assert!(caps.has_str("AUTH=PLAIN"));
 
-    let names: Vec<_> = s
-        .list(Some(""), Some("*"))
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
-    let find = |name: &str| {
-        names
-            .iter()
-            .find(|n| n.name() == name)
-            .unwrap_or_else(|| panic!("mailbox {name} listed"))
-    };
+    let names: Vec<_> = s.list(Some(""), Some("*")).await.unwrap().try_collect().await.unwrap();
+    let find = |name: &str| names.iter().find(|n| n.name() == name).unwrap_or_else(|| panic!("mailbox {name} listed"));
     assert_eq!(names[0].name(), "INBOX");
     assert_eq!(find("INBOX").delimiter(), Some("/"));
     assert!(find("Sent").attributes().contains(&NameAttribute::Sent));
     assert!(find("Drafts").attributes().contains(&NameAttribute::Drafts));
     assert!(find("Trash").attributes().contains(&NameAttribute::Trash));
     assert!(find("Junk").attributes().contains(&NameAttribute::Junk));
-    assert!(
-        find("Archive")
-            .attributes()
-            .contains(&NameAttribute::Archive)
-    );
-    assert!(
-        find("Projetos")
-            .attributes()
-            .iter()
-            .any(|a| matches!(a, NameAttribute::Extension(e) if e == "\\HasChildren"))
-    );
+    assert!(find("Archive").attributes().contains(&NameAttribute::Archive));
+    assert!(find("Projetos").attributes().iter().any(|a| matches!(a, NameAttribute::Extension(e) if e == "\\HasChildren")));
     find("Projetos/Relat&APM-rios");
     find("Projetos/Clientes");
 
     // `%` does not descend into the hierarchy.
-    let top: Vec<_> = s
-        .list(Some(""), Some("%"))
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
+    let top: Vec<_> = s.list(Some(""), Some("%")).await.unwrap().try_collect().await.unwrap();
     assert!(top.iter().all(|n| !n.name().contains('/')));
-    let sub: Vec<_> = s
-        .list(Some("Projetos/"), Some("%"))
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
+    let sub: Vec<_> = s.list(Some("Projetos/"), Some("%")).await.unwrap().try_collect().await.unwrap();
     assert_eq!(sub.len(), 2);
 
-    let lsub: Vec<_> = s
-        .lsub(Some(""), Some("*"))
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
+    let lsub: Vec<_> = s.lsub(Some(""), Some("*")).await.unwrap().try_collect().await.unwrap();
     assert_eq!(lsub.len(), names.len());
 
     // LIST (SPECIAL-USE) only returns the special folders.
@@ -147,10 +87,7 @@ async fn login_list_status_select() {
     assert!(done_ok(done.parsed()));
     assert_eq!(untagged.len(), 5);
 
-    let status = s
-        .status("INBOX", "(MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)")
-        .await
-        .unwrap();
+    let status = s.status("INBOX", "(MESSAGES RECENT UIDNEXT UIDVALIDITY UNSEEN)").await.unwrap();
     assert!(status.exists >= 55, "INBOX has {} messages", status.exists);
     assert!(status.unseen.unwrap() > 0);
 
@@ -159,11 +96,7 @@ async fn login_list_status_select() {
     assert_eq!(mbox.uid_validity, status.uid_validity);
     assert_eq!(mbox.uid_next, status.uid_next);
     assert!(mbox.unseen.is_some());
-    assert!(
-        mbox.permanent_flags
-            .iter()
-            .any(|f| matches!(f, Flag::MayCreate))
-    );
+    assert!(mbox.permanent_flags.iter().any(|f| matches!(f, Flag::MayCreate)));
 
     let mbox = s.examine("Projetos/Relat&APM-rios").await.unwrap();
     assert_eq!(mbox.exists, 2);
@@ -181,16 +114,8 @@ async fn login_list_status_select() {
 async fn fetch_parses_every_seeded_message() {
     let server = server().await;
     let mut s = imap_login(&server, ALICE, "alice").await;
-    let names: Vec<String> = s
-        .list(Some(""), Some("*"))
-        .await
-        .unwrap()
-        .try_collect::<Vec<_>>()
-        .await
-        .unwrap()
-        .iter()
-        .map(|n| n.name().to_owned())
-        .collect();
+    let names: Vec<String> =
+        s.list(Some(""), Some("*")).await.unwrap().try_collect::<Vec<_>>().await.unwrap().iter().map(|n| n.name().to_owned()).collect();
 
     let mut total = 0;
     for name in &names {
@@ -199,10 +124,7 @@ async fn fetch_parses_every_seeded_message() {
             continue;
         }
         let fetches: Vec<Fetch> = s
-            .uid_fetch(
-                "1:*",
-                "(FLAGS ENVELOPE BODYSTRUCTURE RFC822.SIZE INTERNALDATE BODY.PEEK[HEADER.FIELDS (SUBJECT FROM)])",
-            )
+            .uid_fetch("1:*", "(FLAGS ENVELOPE BODYSTRUCTURE RFC822.SIZE INTERNALDATE BODY.PEEK[HEADER.FIELDS (SUBJECT FROM)])")
             .await
             .unwrap()
             .try_collect()
@@ -221,22 +143,12 @@ async fn fetch_parses_every_seeded_message() {
     assert!(total >= 75, "fetched {total} messages");
 
     s.examine("INBOX").await.unwrap();
-    let fetches: Vec<Fetch> = s
-        .fetch("1:*", "(UID ENVELOPE BODYSTRUCTURE)")
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
+    let fetches: Vec<Fetch> = s.fetch("1:*", "(UID ENVELOPE BODYSTRUCTURE)").await.unwrap().try_collect().await.unwrap();
 
     // Envelope values stay RFC 2047 encoded, like real servers.
     let encoded = fetches
         .iter()
-        .find(|f| {
-            f.envelope()
-                .and_then(|e| e.subject.as_ref())
-                .is_some_and(|s| s.starts_with(b"=?UTF-8?B?"))
-        })
+        .find(|f| f.envelope().and_then(|e| e.subject.as_ref()).is_some_and(|s| s.starts_with(b"=?UTF-8?B?")))
         .expect("B-encoded subject");
     let from = &encoded.envelope().unwrap().from.as_ref().unwrap()[0];
     assert_eq!(from.mailbox.as_deref(), Some(&b"patricia.lopes"[..]));
@@ -245,11 +157,7 @@ async fn fetch_parses_every_seeded_message() {
     // The contract message: multipart/mixed with a PDF attachment.
     let contract = fetches
         .iter()
-        .find(|f| {
-            f.envelope()
-                .and_then(|e| e.subject.as_ref())
-                .is_some_and(|s| s.as_ref() == b"Contrato revisado em anexo")
-        })
+        .find(|f| f.envelope().and_then(|e| e.subject.as_ref()).is_some_and(|s| s.as_ref() == b"Contrato revisado em anexo"))
         .expect("contract message");
     let Some(BodyStructure::Multipart { common, bodies, .. }) = contract.bodystructure() else {
         panic!("multipart expected");
@@ -262,43 +170,19 @@ async fn fetch_parses_every_seeded_message() {
     assert!(common.ty.subtype.eq_ignore_ascii_case("pdf"));
     let disposition = common.disposition.as_ref().unwrap();
     assert_eq!(disposition.ty, "attachment");
-    assert_eq!(
-        disposition.params.as_ref().unwrap()[0].1,
-        "contrato-revisado.pdf"
-    );
+    assert_eq!(disposition.params.as_ref().unwrap()[0].1, "contrato-revisado.pdf");
     assert_eq!(other.transfer_encoding, imap_proto::ContentEncoding::Base64);
 
     // Body sections: the decoded PDF starts with the PDF magic.
     let uid = contract.uid.unwrap();
-    let parts: Vec<Fetch> = s
-        .uid_fetch(
-            uid.to_string(),
-            "(BODY.PEEK[2] BODY.PEEK[1.MIME] BODY.PEEK[]<0.20>)",
-        )
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
-    let pdf_b64 = parts[0]
-        .section(&imap_proto::SectionPath::Part(vec![2], None))
-        .unwrap();
+    let parts: Vec<Fetch> =
+        s.uid_fetch(uid.to_string(), "(BODY.PEEK[2] BODY.PEEK[1.MIME] BODY.PEEK[]<0.20>)").await.unwrap().try_collect().await.unwrap();
+    let pdf_b64 = parts[0].section(&imap_proto::SectionPath::Part(vec![2], None)).unwrap();
     use base64::Engine as _;
-    let cleaned: Vec<u8> = pdf_b64
-        .iter()
-        .copied()
-        .filter(|b| !b.is_ascii_whitespace())
-        .collect();
-    let pdf = base64::engine::general_purpose::STANDARD
-        .decode(cleaned)
-        .unwrap();
+    let cleaned: Vec<u8> = pdf_b64.iter().copied().filter(|b| !b.is_ascii_whitespace()).collect();
+    let pdf = base64::engine::general_purpose::STANDARD.decode(cleaned).unwrap();
     assert!(pdf.starts_with(b"%PDF-1.4"));
-    let mime = parts[0]
-        .section(&imap_proto::SectionPath::Part(
-            vec![1],
-            Some(imap_proto::MessageSection::Mime),
-        ))
-        .unwrap();
+    let mime = parts[0].section(&imap_proto::SectionPath::Part(vec![1], Some(imap_proto::MessageSection::Mime))).unwrap();
     assert!(mime.starts_with(b"Content-Type: text/plain"));
 
     s.logout().await.unwrap();
@@ -318,62 +202,19 @@ async fn search_and_sort() {
     assert_eq!(seen.len() + unseen.len(), all.len());
 
     // Decoded RFC 2047 subjects and names, case-insensitive.
-    assert_eq!(
-        s.uid_search("CHARSET UTF-8 SUBJECT \"relatório mensal\"")
-            .await
-            .unwrap()
-            .len(),
-        1
-    );
-    assert_eq!(
-        s.uid_search("CHARSET UTF-8 FROM \"JOÃO GONÇALVES\"")
-            .await
-            .unwrap()
-            .len(),
-        1
-    );
+    assert_eq!(s.uid_search("CHARSET UTF-8 SUBJECT \"relatório mensal\"").await.unwrap().len(), 1);
+    assert_eq!(s.uid_search("CHARSET UTF-8 FROM \"JOÃO GONÇALVES\"").await.unwrap().len(), 1);
     // ISO-8859-1 encoded subject and body.
-    assert_eq!(
-        s.uid_search("CHARSET UTF-8 SUBJECT \"promoção de verão\"")
-            .await
-            .unwrap()
-            .len(),
-        1
-    );
-    assert_eq!(
-        s.uid_search("CHARSET UTF-8 BODY \"manutenção do elevador\"")
-            .await
-            .unwrap()
-            .len(),
-        1
-    );
-    assert!(
-        !s.uid_search("OR FLAGGED ANSWERED")
-            .await
-            .unwrap()
-            .is_empty()
-    );
-    assert_eq!(
-        s.uid_search("HEADER List-Id rust-br").await.unwrap().len(),
-        1
-    );
-    assert!(
-        !s.uid_search("SINCE 1-Jan-2000 LARGER 1000")
-            .await
-            .unwrap()
-            .is_empty()
-    );
+    assert_eq!(s.uid_search("CHARSET UTF-8 SUBJECT \"promoção de verão\"").await.unwrap().len(), 1);
+    assert_eq!(s.uid_search("CHARSET UTF-8 BODY \"manutenção do elevador\"").await.unwrap().len(), 1);
+    assert!(!s.uid_search("OR FLAGGED ANSWERED").await.unwrap().is_empty());
+    assert_eq!(s.uid_search("HEADER List-Id rust-br").await.unwrap().len(), 1);
+    assert!(!s.uid_search("SINCE 1-Jan-2000 LARGER 1000").await.unwrap().is_empty());
     assert!(s.uid_search("BEFORE 1-Jan-2000").await.unwrap().is_empty());
 
     // Literal search argument with UTF-8 bytes.
     let needle = "migração";
-    let (untagged, done) = raw_command!(
-        s,
-        &format!(
-            "UID SEARCH CHARSET UTF-8 SUBJECT {{{}+}}\r\n{needle}",
-            needle.len()
-        ),
-    );
+    let (untagged, done) = raw_command!(s, &format!("UID SEARCH CHARSET UTF-8 SUBJECT {{{}+}}\r\n{needle}", needle.len()),);
     assert!(done_ok(done.parsed()));
     let Response::MailboxData(MailboxDatum::Search(hits)) = untagged[0].parsed() else {
         panic!("SEARCH response expected");
@@ -409,55 +250,28 @@ async fn store_append_copy_move_expunge() {
     let inbox = s.select("INBOX").await.unwrap();
     let first_uid = *s.uid_search("ALL").await.unwrap().iter().min().unwrap();
 
-    let updates: Vec<Fetch> = s
-        .uid_store(first_uid.to_string(), "+FLAGS (\\Flagged $Forwarded)")
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
+    let updates: Vec<Fetch> =
+        s.uid_store(first_uid.to_string(), "+FLAGS (\\Flagged $Forwarded)").await.unwrap().try_collect().await.unwrap();
     assert_eq!(updates.len(), 1);
     assert_eq!(updates[0].uid, Some(first_uid));
     let flags: Vec<Flag<'_>> = updates[0].flags().collect();
     assert!(flags.contains(&Flag::Flagged));
     assert!(flags.contains(&Flag::Custom("$Forwarded".into())));
-    let silent: Vec<Fetch> = s
-        .uid_store(first_uid.to_string(), "-FLAGS.SILENT ($Forwarded)")
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
+    let silent: Vec<Fetch> = s.uid_store(first_uid.to_string(), "-FLAGS.SILENT ($Forwarded)").await.unwrap().try_collect().await.unwrap();
     assert!(silent.is_empty());
 
     // Non-PEEK body fetch sets \Seen.
     let unseen = *s.uid_search("UNSEEN").await.unwrap().iter().min().unwrap();
-    let fetched: Vec<Fetch> = s
-        .uid_fetch(unseen.to_string(), "BODY[TEXT]")
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
+    let fetched: Vec<Fetch> = s.uid_fetch(unseen.to_string(), "BODY[TEXT]").await.unwrap().try_collect().await.unwrap();
     assert!(fetched[0].text().is_some());
     assert!(fetched[0].flags().any(|f| f == Flag::Seen));
 
     // APPEND with a synchronizing literal (async-imap waits for "+").
-    s.append(
-        "INBOX",
-        Some("(\\Seen)"),
-        Some("\"07-Oct-2025 10:20:30 -0300\""),
-        sample_message("appended sync"),
-    )
-    .await
-    .unwrap();
+    s.append("INBOX", Some("(\\Seen)"), Some("\"07-Oct-2025 10:20:30 -0300\""), sample_message("appended sync")).await.unwrap();
 
     // APPEND with LITERAL+ and APPENDUID.
     let msg = sample_message("appended nonsync");
-    let (_, done) = raw_command!(
-        s,
-        &format!("APPEND INBOX (\\Seen $Label1) {{{}+}}\r\n{msg}", msg.len()),
-    );
+    let (_, done) = raw_command!(s, &format!("APPEND INBOX (\\Seen $Label1) {{{}+}}\r\n{msg}", msg.len()),);
     let (status, code) = done_parts(done.parsed());
     assert_eq!(*status, Status::Ok);
     let Some(ResponseCode::AppendUid(validity, uids)) = code else {
@@ -483,34 +297,17 @@ async fn store_append_copy_move_expunge() {
     let (status, code) = done_parts(done.parsed());
     assert_eq!(*status, Status::Ok);
     assert!(matches!(code, Some(ResponseCode::CopyUid(..))));
-    assert_eq!(
-        s.status("Trash", "(MESSAGES)").await.unwrap().exists,
-        trash_before + 1
-    );
+    assert_eq!(s.status("Trash", "(MESSAGES)").await.unwrap().exists, trash_before + 1);
 
     // MOVE removes the message from the source.
     let archive_before = s.status("Archive", "(MESSAGES)").await.unwrap().exists;
     s.uid_mv(appended.to_string(), "Archive").await.unwrap();
-    assert_eq!(
-        s.status("Archive", "(MESSAGES)").await.unwrap().exists,
-        archive_before + 1
-    );
-    assert!(
-        s.uid_search(&format!("UID {appended}"))
-            .await
-            .unwrap()
-            .is_empty()
-    );
+    assert_eq!(s.status("Archive", "(MESSAGES)").await.unwrap().exists, archive_before + 1);
+    assert!(s.uid_search(&format!("UID {appended}")).await.unwrap().is_empty());
 
     // \Deleted + EXPUNGE.
     let count = s.uid_search("ALL").await.unwrap().len();
-    let _: Vec<Fetch> = s
-        .uid_store(first_uid.to_string(), "+FLAGS.SILENT (\\Deleted)")
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
+    let _: Vec<Fetch> = s.uid_store(first_uid.to_string(), "+FLAGS.SILENT (\\Deleted)").await.unwrap().try_collect().await.unwrap();
     let expunged: Vec<u32> = s.expunge().await.unwrap().try_collect().await.unwrap();
     assert_eq!(expunged, vec![1]);
     assert_eq!(s.uid_search("ALL").await.unwrap().len(), count - 1);
@@ -522,20 +319,8 @@ async fn store_append_copy_move_expunge() {
         v
     };
     let set = format!("{},{}", uids[0], uids[1]);
-    let _: Vec<Fetch> = s
-        .uid_store(&set, "+FLAGS.SILENT (\\Deleted)")
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
-    let removed: Vec<u32> = s
-        .uid_expunge(uids[0].to_string())
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
+    let _: Vec<Fetch> = s.uid_store(&set, "+FLAGS.SILENT (\\Deleted)").await.unwrap().try_collect().await.unwrap();
+    let removed: Vec<u32> = s.uid_expunge(uids[0].to_string()).await.unwrap().try_collect().await.unwrap();
     assert_eq!(removed.len(), 1);
 
     // Mailbox management: create (with parents), rename (with children), delete.
@@ -551,10 +336,7 @@ async fn store_append_copy_move_expunge() {
         .iter()
         .map(|n| n.name().to_owned())
         .collect();
-    assert_eq!(
-        names,
-        vec!["Renomeado", "Renomeado/Sub", "Renomeado/Sub/Folha"]
-    );
+    assert_eq!(names, vec!["Renomeado", "Renomeado/Sub", "Renomeado/Sub/Folha"]);
     assert!(s.delete("Renomeado").await.is_err(), "has children");
     s.delete("Renomeado/Sub/Folha").await.unwrap();
     s.delete("Renomeado/Sub").await.unwrap();
@@ -580,18 +362,13 @@ async fn idle_and_unsolicited_updates() {
     let (wait, _stop) = idle.wait_with_timeout(Duration::from_secs(10));
     let appender = async {
         tokio::time::sleep(Duration::from_millis(100)).await;
-        other
-            .append("INBOX", None, None, sample_message("idle wakeup"))
-            .await
-            .unwrap();
+        other.append("INBOX", None, None, sample_message("idle wakeup")).await.unwrap();
     };
     let (response, ()) = tokio::join!(wait, appender);
     let IdleResponse::NewData(data) = response.unwrap() else {
         panic!("expected new data");
     };
-    assert!(
-        matches!(data.parsed(), Response::MailboxData(MailboxDatum::Exists(n)) if *n == exists + 1)
-    );
+    assert!(matches!(data.parsed(), Response::MailboxData(MailboxDatum::Exists(n)) if *n == exists + 1));
     let watcher = idle.done().await.unwrap();
 
     // IDLE also wakes up for library deliveries (as SMTP does).
@@ -611,30 +388,10 @@ async fn idle_and_unsolicited_updates() {
     // command, with consistent sequence numbers.
     let mut uids: Vec<u32> = other.uid_search("ALL").await.unwrap().into_iter().collect();
     uids.sort_unstable();
-    let _: Vec<Fetch> = other
-        .uid_store(
-            format!("{},{}", uids[2], uids[4]),
-            "+FLAGS.SILENT (\\Deleted)",
-        )
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
-    let _: Vec<Fetch> = other
-        .uid_store(uids[0].to_string(), "+FLAGS.SILENT (\\Flagged)")
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
-    other
-        .expunge()
-        .await
-        .unwrap()
-        .try_collect::<Vec<_>>()
-        .await
-        .unwrap();
+    let _: Vec<Fetch> =
+        other.uid_store(format!("{},{}", uids[2], uids[4]), "+FLAGS.SILENT (\\Deleted)").await.unwrap().try_collect().await.unwrap();
+    let _: Vec<Fetch> = other.uid_store(uids[0].to_string(), "+FLAGS.SILENT (\\Flagged)").await.unwrap().try_collect().await.unwrap();
+    other.expunge().await.unwrap().try_collect::<Vec<_>>().await.unwrap();
 
     let (untagged, done) = raw_command!(watcher, "NOOP");
     assert!(done_ok(done.parsed()));
@@ -646,11 +403,7 @@ async fn idle_and_unsolicited_updates() {
         })
         .collect();
     assert_eq!(expunges, vec![3, 4], "seq 3 then old seq 5 shifted to 4");
-    assert!(
-        untagged
-            .iter()
-            .any(|r| matches!(r.parsed(), Response::Fetch(1, _)))
-    );
+    assert!(untagged.iter().any(|r| matches!(r.parsed(), Response::Fetch(1, _))));
 
     watcher.logout().await.unwrap();
     other.logout().await.unwrap();
@@ -678,13 +431,7 @@ async fn raw_protocol_edge_cases() {
     assert!(lines.iter().any(|l| l.starts_with("* OK [UIDVALIDITY ")));
 
     // Malformed input never kills the connection.
-    for bad in [
-        "a5 FETCH\r\n",
-        "a5 FETCH x:y FLAGS\r\n",
-        "a5 UID FETCH 1 (BODY[9.9.9.HEADERX])\r\n",
-        "a5 SEARCH (\r\n",
-        "\"\r\n",
-    ] {
+    for bad in ["a5 FETCH\r\n", "a5 FETCH x:y FLAGS\r\n", "a5 UID FETCH 1 (BODY[9.9.9.HEADERX])\r\n", "a5 SEARCH (\r\n", "\"\r\n"] {
         c.send(bad).await;
         let line = c.line().await;
         assert!(line.contains("BAD"), "{bad:?} -> {line}");
@@ -715,19 +462,15 @@ async fn raw_protocol_edge_cases() {
     assert!(c.line().await.starts_with("a9 OK"));
 
     // Hostile inputs are rejected or answered quickly.
-    c.send(&format!("a11 SEARCH {}ALL\r\n", "NOT ".repeat(10_000)))
-        .await;
+    c.send(&format!("a11 SEARCH {}ALL\r\n", "NOT ".repeat(10_000))).await;
     assert!(c.line().await.starts_with("a11 BAD"));
-    c.send(&format!("a12 LIST \"\" \"{}x\"\r\n", "*%".repeat(200)))
-        .await;
+    c.send(&format!("a12 LIST \"\" \"{}x\"\r\n", "*%".repeat(200))).await;
     assert!(c.line().await.starts_with("a12 OK"));
-    c.send("a13 APPEND INBOX (\\Seen) \"99-Foo-2025 99:99:99 +zz\u{e9}\" {1+}\r\nx\r\n")
-        .await;
+    c.send("a13 APPEND INBOX (\\Seen) \"99-Foo-2025 99:99:99 +zz\u{e9}\" {1+}\r\nx\r\n").await;
     assert!(c.line().await.starts_with("a13 BAD"));
     c.send("a14 FETCH 1 BODY[]<0.99999999999>\r\n").await;
     assert!(c.line().await.starts_with("a14 BAD"));
-    c.send("a15 SEARCH SUBJECT {99999999999999999999}\r\n")
-        .await;
+    c.send("a15 SEARCH SUBJECT {99999999999999999999}\r\n").await;
     assert!(c.line().await.starts_with("a15 BAD"));
 
     c.send("a10 LOGOUT\r\n").await;
@@ -737,11 +480,7 @@ async fn raw_protocol_edge_cases() {
     // AUTHENTICATE PLAIN with SASL-IR and with a continuation.
     let mut c = Raw::connect(server.imap_addr()).await;
     c.line().await;
-    c.send(&format!(
-        "b1 AUTHENTICATE PLAIN {}\r\n",
-        plain_auth(ALICE, "alice")
-    ))
-    .await;
+    c.send(&format!("b1 AUTHENTICATE PLAIN {}\r\n", plain_auth(ALICE, "alice"))).await;
     assert!(c.line().await.starts_with("b1 OK"));
 
     let mut c = Raw::connect(server.imap_addr()).await;
@@ -775,20 +514,9 @@ async fn large_append_round_trip() {
     s.select("INBOX").await.unwrap();
     s.append("INBOX", None, None, &message).await.unwrap();
     s.noop().await.unwrap();
-    let uid = *s
-        .uid_search("SUBJECT \"Large attachment\"")
-        .await
-        .unwrap()
-        .iter()
-        .next()
-        .unwrap();
-    let fetched: Vec<Fetch> = s
-        .uid_fetch(uid.to_string(), "(RFC822.SIZE BODYSTRUCTURE BODY.PEEK[])")
-        .await
-        .unwrap()
-        .try_collect()
-        .await
-        .unwrap();
+    let uid = *s.uid_search("SUBJECT \"Large attachment\"").await.unwrap().iter().next().unwrap();
+    let fetched: Vec<Fetch> =
+        s.uid_fetch(uid.to_string(), "(RFC822.SIZE BODYSTRUCTURE BODY.PEEK[])").await.unwrap().try_collect().await.unwrap();
     assert_eq!(fetched[0].size, Some(message.len() as u32));
     assert_eq!(fetched[0].body().map(<[u8]>::len), Some(message.len()));
     let Some(BodyStructure::Multipart { bodies, .. }) = fetched[0].bodystructure() else {

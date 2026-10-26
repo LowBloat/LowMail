@@ -59,12 +59,7 @@ struct Session {
 /// Serves one ManageSieve connection until LOGOUT or disconnect.
 pub(crate) async fn handle(stream: TcpStream, store: Arc<Store>) {
     let (read, write) = stream.into_split();
-    let mut session = Session {
-        reader: LineReader::new(read),
-        writer: BufWriter::new(write),
-        store,
-        user: None,
-    };
+    let mut session = Session { reader: LineReader::new(read), writer: BufWriter::new(write), store, user: None };
     if let Err(err) = session.run().await {
         tracing::debug!(%err, "sieve connection ended");
     }
@@ -87,11 +82,7 @@ impl Session {
         let mut cmd = Vec::new();
         loop {
             let Some(line) = self.reader.read_line(MAX_LINE).await? else {
-                return if cmd.is_empty() {
-                    Ok(None)
-                } else {
-                    Err(io::ErrorKind::UnexpectedEof.into())
-                };
+                return if cmd.is_empty() { Ok(None) } else { Err(io::ErrorKind::UnexpectedEof.into()) };
             };
             let marker = literal_marker(trim_eol(&line));
             cmd.extend_from_slice(&line);
@@ -101,10 +92,7 @@ impl Session {
                     cmd.extend_from_slice(&data);
                 }
                 Some(_) => {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "literal too large",
-                    ));
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, "literal too large"));
                 }
                 None => return Ok(Some(cmd)),
             }
@@ -112,11 +100,7 @@ impl Session {
     }
 
     async fn run(&mut self) -> io::Result<()> {
-        self.send(&format!(
-            "{CAPABILITIES}{}",
-            ok("LowMail ManageSieve ready")
-        ))
-        .await?;
+        self.send(&format!("{CAPABILITIES}{}", ok("LowMail ManageSieve ready"))).await?;
         while let Some(cmd) = self.read_command().await? {
             let line = trim_eol(&cmd);
             if line.is_empty() {
@@ -143,9 +127,7 @@ impl Session {
                 "STARTTLS" => no(None, "TLS is not supported by this test server"),
                 _ => match self.user.clone() {
                     None => no(None, "Authenticate first"),
-                    Some(user) => self
-                        .authenticated(&command, &mut p, &user)
-                        .unwrap_or_else(|e| no(None, &format!("Syntax error: {e}"))),
+                    Some(user) => self.authenticated(&command, &mut p, &user).unwrap_or_else(|e| no(None, &format!("Syntax error: {e}"))),
                 },
             };
             self.send(&reply).await?;
@@ -158,10 +140,7 @@ impl Session {
             return Ok(no(None, "Already authenticated"));
         }
         let Ok(mechanism) = string_arg(p) else {
-            return Ok(no(
-                None,
-                "Syntax: AUTHENTICATE \"PLAIN\" [initial-response]",
-            ));
+            return Ok(no(None, "Syntax: AUTHENTICATE \"PLAIN\" [initial-response]"));
         };
         if !mechanism.eq_ignore_ascii_case("PLAIN") {
             return Ok(no(None, "Unsupported SASL mechanism"));
@@ -196,8 +175,7 @@ impl Session {
             return Ok(no(None, "Unknown user"));
         };
         let scripts = &mut account.scripts;
-        let find =
-            |scripts: &[SieveScript], name: &str| scripts.iter().position(|s| s.name == name);
+        let find = |scripts: &[SieveScript], name: &str| scripts.iter().position(|s| s.name == name);
         Ok(match command {
             "LISTSCRIPTS" => {
                 let mut out = String::new();
@@ -216,11 +194,7 @@ impl Session {
                 match find(scripts, &name) {
                     Some(i) => {
                         let content = &scripts[i].content;
-                        format!(
-                            "{{{}}}\r\n{content}\r\n{}",
-                            content.len(),
-                            ok("Getscript completed")
-                        )
+                        format!("{{{}}}\r\n{content}\r\n{}", content.len(), ok("Getscript completed"))
                     }
                     None => no(Some("NONEXISTENT"), "There is no script by that name"),
                 }
@@ -236,22 +210,14 @@ impl Session {
                 } else {
                     match find(scripts, &name) {
                         Some(i) => scripts[i].content = content,
-                        None => scripts.push(SieveScript {
-                            name,
-                            content,
-                            active: false,
-                        }),
+                        None => scripts.push(SieveScript { name, content, active: false }),
                     }
                     ok("Putscript completed")
                 }
             }
             "CHECKSCRIPT" => {
                 let content = string_arg(p)?;
-                if content.trim().is_empty() {
-                    no(None, "Script is empty")
-                } else {
-                    ok("Script is valid")
-                }
+                if content.trim().is_empty() { no(None, "Script is empty") } else { ok("Script is valid") }
             }
             "SETACTIVE" => {
                 let name = string_arg(p)?;
@@ -270,9 +236,7 @@ impl Session {
             "DELETESCRIPT" => {
                 let name = string_arg(p)?;
                 match find(scripts, &name) {
-                    Some(i) if scripts[i].active => {
-                        no(Some("ACTIVE"), "You may not delete an active script")
-                    }
+                    Some(i) if scripts[i].active => no(Some("ACTIVE"), "You may not delete an active script"),
                     Some(i) => {
                         scripts.remove(i);
                         ok("Deletescript completed")
@@ -284,10 +248,7 @@ impl Session {
                 let old = string_arg(p)?;
                 let new = string_arg(p)?;
                 if find(scripts, &new).is_some() {
-                    no(
-                        Some("ALREADYEXISTS"),
-                        "A script with that name already exists",
-                    )
+                    no(Some("ALREADYEXISTS"), "A script with that name already exists")
                 } else if let Some(i) = find(scripts, &old) {
                     scripts[i].name = new;
                     ok("Renamescript completed")
@@ -299,11 +260,7 @@ impl Session {
                 let _name = string_arg(p)?;
                 p.sp()?;
                 let size = p.number64()?;
-                if size as usize > MAX_SCRIPT {
-                    no(Some("QUOTA/MAXSIZE"), "Script too large")
-                } else {
-                    ok("Putscript would succeed")
-                }
+                if size as usize > MAX_SCRIPT { no(Some("QUOTA/MAXSIZE"), "Script too large") } else { ok("Putscript would succeed") }
             }
             _ => no(None, "Unknown command"),
         })

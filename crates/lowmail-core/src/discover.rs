@@ -23,23 +23,27 @@ async fn first_open(candidates: Vec<(String, u16, Security)>) -> Option<(String,
 
 pub async fn discover(email: &str) -> Result<AccountConfig> {
     let email = email.trim().to_ascii_lowercase();
-    let domain = email.rsplit_once('@').map(|(_, d)| d.to_string()).filter(|d| d.contains('.')).ok_or_else(|| Error::invalid("Enter a valid e-mail address."))?;
+    let domain = email
+        .rsplit_once('@')
+        .map(|(_, d)| d.to_string())
+        .filter(|d| d.contains('.'))
+        .ok_or_else(|| Error::invalid("Enter a valid e-mail address."))?;
     let hosts = [format!("imap.{domain}"), format!("mail.{domain}"), domain.clone(), format!("smtp.{domain}")];
-    let imap_candidates: Vec<(String, u16, Security)> = hosts[..3]
-        .iter()
-        .flat_map(|h| [(h.clone(), 993, Security::Tls), (h.clone(), 143, Security::StartTls)])
-        .collect();
+    let imap_candidates: Vec<(String, u16, Security)> =
+        hosts[..3].iter().flat_map(|h| [(h.clone(), 993, Security::Tls), (h.clone(), 143, Security::StartTls)]).collect();
     let smtp_hosts = [hosts[3].clone(), hosts[1].clone(), hosts[2].clone()];
-    let smtp_candidates: Vec<(String, u16, Security)> = smtp_hosts
-        .iter()
-        .flat_map(|h| [(h.clone(), 465, Security::Tls), (h.clone(), 587, Security::StartTls)])
-        .collect();
+    let smtp_candidates: Vec<(String, u16, Security)> =
+        smtp_hosts.iter().flat_map(|h| [(h.clone(), 465, Security::Tls), (h.clone(), 587, Security::StartTls)]).collect();
     let (imap, smtp) = tokio::join!(first_open(imap_candidates), first_open(smtp_candidates));
-    let (imap_host, imap_port, imap_security) = imap.ok_or_else(|| {
-        Error::not_found(format!("No mail server found for {domain}. Fill in the server settings."))
-    })?;
+    let (imap_host, imap_port, imap_security) =
+        imap.ok_or_else(|| Error::not_found(format!("No mail server found for {domain}. Fill in the server settings.")))?;
     let (smtp_host, smtp_port, smtp_security) = smtp.unwrap_or((imap_host.clone(), 587, Security::StartTls));
-    let sieve = open(&imap_host, 4190).await.then(|| Endpoint { host: imap_host.clone(), port: 4190, security: Security::StartTls, accept_invalid_certs: false });
+    let sieve = open(&imap_host, 4190).await.then(|| Endpoint {
+        host: imap_host.clone(),
+        port: 4190,
+        security: Security::StartTls,
+        accept_invalid_certs: false,
+    });
     Ok(AccountConfig {
         id: String::new(),
         label: String::new(),

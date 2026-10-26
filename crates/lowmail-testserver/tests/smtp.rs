@@ -32,13 +32,7 @@ async fn submission_and_local_delivery() {
     let ehlo = cmd(&mut c, "EHLO client.example").await;
     assert!(ehlo.iter().all(|l| l.starts_with("250")));
     let caps = ehlo.join("\n");
-    for cap in [
-        "AUTH PLAIN LOGIN",
-        "SIZE 52428800",
-        "8BITMIME",
-        "SMTPUTF8",
-        "ENHANCEDSTATUSCODES",
-    ] {
+    for cap in ["AUTH PLAIN LOGIN", "SIZE 52428800", "8BITMIME", "SMTPUTF8", "ENHANCEDSTATUSCODES"] {
         assert!(caps.contains(cap), "missing {cap}");
     }
     for cap in ["PIPELINING", "STARTTLS", "CHUNKING"] {
@@ -47,27 +41,10 @@ async fn submission_and_local_delivery() {
 
     assert!(cmd(&mut c, "MAIL FROM:<alice@lowmail.test>").await[0].starts_with("530"));
     assert!(cmd(&mut c, "VRFY bob").await[0].starts_with("252"));
-    assert!(
-        cmd(&mut c, &format!("AUTH PLAIN {}", plain_auth(ALICE, "nope"))).await[0]
-            .starts_with("535")
-    );
-    assert!(
-        cmd(
-            &mut c,
-            &format!("AUTH PLAIN {}", plain_auth(ALICE, "alice"))
-        )
-        .await[0]
-            .starts_with("235")
-    );
+    assert!(cmd(&mut c, &format!("AUTH PLAIN {}", plain_auth(ALICE, "nope"))).await[0].starts_with("535"));
+    assert!(cmd(&mut c, &format!("AUTH PLAIN {}", plain_auth(ALICE, "alice"))).await[0].starts_with("235"));
     assert!(cmd(&mut c, "RCPT TO:<bob@lowmail.test>").await[0].starts_with("503"));
-    assert!(
-        cmd(
-            &mut c,
-            "MAIL FROM:<alice@lowmail.test> SIZE=1000 BODY=8BITMIME"
-        )
-        .await[0]
-            .starts_with("250")
-    );
+    assert!(cmd(&mut c, "MAIL FROM:<alice@lowmail.test> SIZE=1000 BODY=8BITMIME").await[0].starts_with("250"));
     assert!(cmd(&mut c, "RCPT TO:<bob@lowmail.test>").await[0].starts_with("250"));
     assert!(cmd(&mut c, "RCPT TO:<Alice@LowMail.test>").await[0].starts_with("250"));
     assert!(cmd(&mut c, "RCPT TO:<someone@example.com>").await[0].starts_with("250"));
@@ -100,14 +77,7 @@ async fn submission_and_local_delivery() {
     bob.logout().await.unwrap();
     let mut alice = imap_login(&server, ALICE, "alice").await;
     alice.select("INBOX").await.unwrap();
-    assert_eq!(
-        alice
-            .search("SUBJECT \"SMTP test\" HEADER Return-Path alice")
-            .await
-            .unwrap()
-            .len(),
-        1
-    );
+    assert_eq!(alice.search("SUBJECT \"SMTP test\" HEADER Return-Path alice").await.unwrap().len(), 1);
     alice.logout().await.unwrap();
 }
 

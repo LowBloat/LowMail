@@ -56,9 +56,7 @@ fn compare(key: SortKey, a: &Candidate, b: &Candidate) -> Ordering {
     match key {
         SortKey::Arrival => a.internal_date.cmp(&b.internal_date),
         SortKey::Date => {
-            let date = |c: &Candidate, m: &crate::message::Meta| {
-                m.sent.map_or(c.internal_date.timestamp(), |s| s.timestamp)
-            };
+            let date = |c: &Candidate, m: &crate::message::Meta| m.sent.map_or(c.internal_date.timestamp(), |s| s.timestamp);
             date(a, ma).cmp(&date(b, mb))
         }
         SortKey::Size => a.data.raw.len().cmp(&b.data.raw.len()),
@@ -90,19 +88,7 @@ mod tests {
     #[test]
     fn criteria() {
         let c = parse_criteria(&mut Parser::new(b"(REVERSE DATE subject)")).unwrap();
-        assert_eq!(
-            c,
-            vec![
-                Criterion {
-                    key: SortKey::Date,
-                    reverse: true
-                },
-                Criterion {
-                    key: SortKey::Subject,
-                    reverse: false
-                }
-            ]
-        );
+        assert_eq!(c, vec![Criterion { key: SortKey::Date, reverse: true }, Criterion { key: SortKey::Subject, reverse: false }]);
         assert!(parse_criteria(&mut Parser::new(b"(REVERSE)")).is_err());
     }
 }

@@ -19,8 +19,7 @@ use crate::io::{LineReader, literal_marker, trim_eol};
 use crate::message::MessageData;
 use crate::sasl;
 use crate::store::{
-    self, DELIMITER, MailboxError, SYSTEM_FLAGS, Store, add_flag, canonical_flag, has_flag,
-    normalize_mailbox, remove_flag,
+    self, DELIMITER, MailboxError, SYSTEM_FLAGS, Store, add_flag, canonical_flag, has_flag, normalize_mailbox, remove_flag,
 };
 
 /// Longest command line accepted (literals excluded).
@@ -64,9 +63,7 @@ fn bad<T>(text: impl Into<String>) -> Result<T, Failure> {
 
 fn search_failure(e: SearchError) -> Failure {
     match e {
-        SearchError::BadCharset => {
-            Failure::No("[BADCHARSET (UTF-8 US-ASCII)] Unsupported charset".into())
-        }
+        SearchError::BadCharset => Failure::No("[BADCHARSET (UTF-8 US-ASCII)] Unsupported charset".into()),
         SearchError::Parse(e) => Failure::Bad(e.0),
     }
 }
@@ -91,11 +88,7 @@ struct Selected {
 impl Selected {
     /// `(seq, uid)` pairs addressed by a sequence or UID set.
     fn targets(&self, set: &SeqSet, uid: bool) -> Vec<(u32, u32)> {
-        let max = if uid {
-            self.known.last().map_or(0, |k| k.uid)
-        } else {
-            self.known.len() as u32
-        };
+        let max = if uid { self.known.last().map_or(0, |k| k.uid) } else { self.known.len() as u32 };
         self.known
             .iter()
             .enumerate()
@@ -145,10 +138,7 @@ fn wildcard_match(pattern: &[u8], name: &[u8]) -> bool {
 /// Makes a leading `inbox` in a LIST pattern match the canonical `INBOX`.
 fn normalize_pattern(pattern: &str) -> String {
     let b = pattern.as_bytes();
-    if b.len() >= 5
-        && b[..5].eq_ignore_ascii_case(b"INBOX")
-        && (b.len() == 5 || b[5] == DELIMITER as u8)
-    {
+    if b.len() >= 5 && b[..5].eq_ignore_ascii_case(b"INBOX") && (b.len() == 5 || b[5] == DELIMITER as u8) {
         format!("INBOX{}", &pattern[5..])
     } else {
         pattern.to_owned()
@@ -208,10 +198,7 @@ impl Connection {
     }
 
     pub(crate) async fn run(mut self) {
-        self.out.extend_from_slice(
-            format!("* OK [CAPABILITY {CAPABILITIES}] LowMail test IMAP server ready\r\n")
-                .as_bytes(),
-        );
+        self.out.extend_from_slice(format!("* OK [CAPABILITY {CAPABILITIES}] LowMail test IMAP server ready\r\n").as_bytes());
         if self.flush().await.is_err() {
             return;
         }
@@ -256,11 +243,7 @@ impl Connection {
         let mut cmd = Vec::new();
         loop {
             let Some(line) = self.reader.read_line(MAX_LINE).await? else {
-                return if cmd.is_empty() {
-                    Ok(Incoming::Eof)
-                } else {
-                    Err(io::ErrorKind::UnexpectedEof.into())
-                };
+                return if cmd.is_empty() { Ok(Incoming::Eof) } else { Err(io::ErrorKind::UnexpectedEof.into()) };
             };
             let content = trim_eol(&line);
             if cmd.is_empty() && content.is_empty() {
@@ -272,14 +255,7 @@ impl Connection {
                 return Ok(Incoming::Command(cmd));
             };
             if n.saturating_add(cmd.len()) > MAX_LITERAL {
-                return if sync {
-                    Ok(Incoming::TooBig(cmd))
-                } else {
-                    Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "literal too large",
-                    ))
-                };
+                return if sync { Ok(Incoming::TooBig(cmd)) } else { Err(io::Error::new(io::ErrorKind::InvalidData, "literal too large")) };
             }
             if sync {
                 self.out.extend_from_slice(b"+ Ready for literal data\r\n");
@@ -297,8 +273,7 @@ impl Connection {
     }
 
     fn respond(&mut self, tag: &str, status: &str, text: &str) {
-        self.out
-            .extend_from_slice(format!("{tag} {status} {text}\r\n").as_bytes());
+        self.out.extend_from_slice(format!("{tag} {status} {text}\r\n").as_bytes());
     }
 
     /// Runs one command; returns `true` when the connection must close.
@@ -329,11 +304,7 @@ impl Connection {
         let result = self.dispatch(&command, uid, &mut p).await;
         // Expunges must not be announced during non-UID FETCH/STORE/SEARCH
         // (RFC 3501 §7.4.1), since that would shift sequence numbers.
-        let allow_expunge = uid
-            || !matches!(
-                command.as_str(),
-                "FETCH" | "STORE" | "SEARCH" | "SORT" | "COPY"
-            );
+        let allow_expunge = uid || !matches!(command.as_str(), "FETCH" | "STORE" | "SEARCH" | "SORT" | "COPY");
         match result {
             Ok(Reply::Ok(text)) => {
                 self.sync(allow_expunge);
@@ -358,12 +329,7 @@ impl Connection {
     }
 
     async fn dispatch(&mut self, command: &str, uid: bool, p: &mut Parser<'_>) -> CmdResult {
-        if uid
-            && !matches!(
-                command,
-                "FETCH" | "STORE" | "COPY" | "MOVE" | "SEARCH" | "SORT" | "EXPUNGE"
-            )
-        {
+        if uid && !matches!(command, "FETCH" | "STORE" | "COPY" | "MOVE" | "SEARCH" | "SORT" | "EXPUNGE") {
             return bad("Unknown UID command");
         }
         match command {
@@ -391,13 +357,7 @@ impl Connection {
         }
     }
 
-    async fn authenticated(
-        &mut self,
-        command: &str,
-        uid: bool,
-        p: &mut Parser<'_>,
-        user: &str,
-    ) -> CmdResult {
+    async fn authenticated(&mut self, command: &str, uid: bool, p: &mut Parser<'_>, user: &str) -> CmdResult {
         match command {
             "SELECT" => self.select(p, user, false),
             "EXAMINE" => self.select(p, user, true),
@@ -419,8 +379,7 @@ impl Connection {
             "GETQUOTA" => self.quota(p, user),
             "SETQUOTA" => no("Quota cannot be changed"),
             "IDLE" => self.idle(p).await,
-            "CHECK" | "CLOSE" | "UNSELECT" | "EXPUNGE" | "SEARCH" | "SORT" | "FETCH" | "STORE"
-            | "COPY" | "MOVE" => {
+            "CHECK" | "CLOSE" | "UNSELECT" | "EXPUNGE" | "SEARCH" | "SORT" | "FETCH" | "STORE" | "COPY" | "MOVE" => {
                 if self.selected.is_none() {
                     return bad("No mailbox selected");
                 }
@@ -453,15 +412,12 @@ impl Connection {
         };
         let store = self.store.clone();
         let mut inner = store.lock();
-        let mbox = inner
-            .mailbox_mut(&user, &sel.name)
-            .filter(|m| m.uid_validity == sel.uid_validity);
+        let mbox = inner.mailbox_mut(&user, &sel.name).filter(|m| m.uid_validity == sel.uid_validity);
         let Some(mbox) = mbox else {
             // Deleted or replaced: everything is gone for this client.
             if allow_expunge && !sel.known.is_empty() {
                 for i in (1..=sel.known.len()).rev() {
-                    self.out
-                        .extend_from_slice(format!("* {i} EXPUNGE\r\n").as_bytes());
+                    self.out.extend_from_slice(format!("* {i} EXPUNGE\r\n").as_bytes());
                 }
                 sel.known.clear();
                 sel.recent.clear();
@@ -472,8 +428,7 @@ impl Connection {
             let mut i = 0;
             while i < sel.known.len() {
                 if mbox.find(sel.known[i].uid).is_none() {
-                    self.out
-                        .extend_from_slice(format!("* {} EXPUNGE\r\n", i + 1).as_bytes());
+                    self.out.extend_from_slice(format!("* {} EXPUNGE\r\n", i + 1).as_bytes());
                     let gone = sel.known.remove(i);
                     sel.recent.remove(&gone.uid);
                 } else {
@@ -487,9 +442,7 @@ impl Connection {
             {
                 known.flags = m.flags.clone();
                 let flags = wire::flag_list(&known.flags, sel.recent.contains(&known.uid));
-                self.out.extend_from_slice(
-                    format!("* {} FETCH (UID {} FLAGS {flags})\r\n", i + 1, known.uid).as_bytes(),
-                );
+                self.out.extend_from_slice(format!("* {} FETCH (UID {} FLAGS {flags})\r\n", i + 1, known.uid).as_bytes());
             }
         }
         let mut added = false;
@@ -499,22 +452,12 @@ impl Connection {
                 m.recent = false;
                 sel.recent.insert(m.uid);
             }
-            sel.known.push(Known {
-                uid: m.uid,
-                flags: m.flags.clone(),
-            });
+            sel.known.push(Known { uid: m.uid, flags: m.flags.clone() });
             sel.max_uid = m.uid;
             added = true;
         }
         if added {
-            self.out.extend_from_slice(
-                format!(
-                    "* {} EXISTS\r\n* {} RECENT\r\n",
-                    sel.known.len(),
-                    sel.recent.len()
-                )
-                .as_bytes(),
-            );
+            self.out.extend_from_slice(format!("* {} EXISTS\r\n* {} RECENT\r\n", sel.known.len(), sel.recent.len()).as_bytes());
         }
     }
 
@@ -538,10 +481,7 @@ impl Connection {
             }
         }
         p.end()?;
-        self.untagged(&format!(
-            "ID (\"name\" \"LowMail Test\" \"version\" \"{}\" \"vendor\" \"LowBloat\")",
-            env!("CARGO_PKG_VERSION")
-        ));
+        self.untagged(&format!("ID (\"name\" \"LowMail Test\" \"version\" \"{}\" \"vendor\" \"LowBloat\")", env!("CARGO_PKG_VERSION")));
         ok("ID completed")
     }
 
@@ -590,8 +530,7 @@ impl Connection {
         if response == b"*" {
             return bad("AUTHENTICATE cancelled");
         }
-        let login = sasl::decode_plain(&response)
-            .and_then(|(user, pass)| self.store.authenticate(&user, &pass));
+        let login = sasl::decode_plain(&response).and_then(|(user, pass)| self.store.authenticate(&user, &pass));
         match login {
             Some(login) => {
                 self.user = Some(login);
@@ -638,43 +577,24 @@ impl Connection {
         if read_only {
             self.untagged("OK [PERMANENTFLAGS ()] Read-only mailbox");
         } else {
-            self.untagged(&format!(
-                "OK [PERMANENTFLAGS ({system} {keywords} \\*)] Flags permitted"
-            ));
+            self.untagged(&format!("OK [PERMANENTFLAGS ({system} {keywords} \\*)] Flags permitted"));
         }
         self.untagged(&format!("{} EXISTS", mbox.messages.len()));
         self.untagged(&format!("{} RECENT", recent.len()));
         if let Some(i) = mbox.messages.iter().position(|m| !m.has_flag("\\Seen")) {
             self.untagged(&format!("OK [UNSEEN {}] First unseen", i + 1));
         }
-        self.untagged(&format!(
-            "OK [UIDVALIDITY {}] UIDs valid",
-            mbox.uid_validity
-        ));
-        self.untagged(&format!(
-            "OK [UIDNEXT {}] Predicted next UID",
-            mbox.uid_next
-        ));
+        self.untagged(&format!("OK [UIDVALIDITY {}] UIDs valid", mbox.uid_validity));
+        self.untagged(&format!("OK [UIDNEXT {}] Predicted next UID", mbox.uid_next));
         self.selected = Some(Selected {
             name,
             uid_validity: mbox.uid_validity,
             read_only,
-            known: mbox
-                .messages
-                .iter()
-                .map(|m| Known {
-                    uid: m.uid,
-                    flags: m.flags.clone(),
-                })
-                .collect(),
+            known: mbox.messages.iter().map(|m| Known { uid: m.uid, flags: m.flags.clone() }).collect(),
             max_uid: mbox.messages.last().map_or(0, |m| m.uid),
             recent,
         });
-        if read_only {
-            ok("[READ-ONLY] EXAMINE completed")
-        } else {
-            ok("[READ-WRITE] SELECT completed")
-        }
+        if read_only { ok("[READ-ONLY] EXAMINE completed") } else { ok("[READ-WRITE] SELECT completed") }
     }
 
     fn create(&mut self, p: &mut Parser<'_>, user: &str) -> CmdResult {
@@ -740,12 +660,7 @@ impl Connection {
                 if inner.create_mailbox(user, &to, None).is_err() {
                     return no("Invalid mailbox name");
                 }
-                let messages = std::mem::take(
-                    &mut inner
-                        .mailbox_mut(user, "INBOX")
-                        .expect("INBOX exists")
-                        .messages,
-                );
+                let messages = std::mem::take(&mut inner.mailbox_mut(user, "INBOX").expect("INBOX exists").messages);
                 let target = inner.mailbox_mut(user, &to).expect("just created");
                 for m in messages {
                     target.append(m.data, m.flags, m.internal_date);
@@ -759,12 +674,7 @@ impl Connection {
                 }
                 let account = inner.account_mut(user).expect("authenticated user");
                 let prefix = format!("{from}{DELIMITER}");
-                let names: Vec<String> = account
-                    .mailboxes
-                    .keys()
-                    .filter(|k| **k == from || k.starts_with(&prefix))
-                    .cloned()
-                    .collect();
+                let names: Vec<String> = account.mailboxes.keys().filter(|k| **k == from || k.starts_with(&prefix)).cloned().collect();
                 for old in names {
                     let new = format!("{to}{}", &old[from.len()..]);
                     if let Some(mut mbox) = account.mailboxes.remove(&old) {
@@ -787,11 +697,7 @@ impl Connection {
             None if subscribe => return no("[NONEXISTENT] Mailbox does not exist"),
             None => {}
         }
-        ok(if subscribe {
-            "SUBSCRIBE completed"
-        } else {
-            "UNSUBSCRIBE completed"
-        })
+        ok(if subscribe { "SUBSCRIBE completed" } else { "UNSUBSCRIBE completed" })
     }
 
     fn list(&mut self, p: &mut Parser<'_>, user: &str, lsub: bool) -> CmdResult {
@@ -839,10 +745,7 @@ impl Connection {
             self.untagged(&format!("{word} (\\Noselect) \"/\" \"\""));
             return ok(format!("{word} completed"));
         }
-        let patterns: Vec<String> = patterns
-            .iter()
-            .map(|pat| normalize_pattern(&format!("{reference}{pat}")))
-            .collect();
+        let patterns: Vec<String> = patterns.iter().map(|pat| normalize_pattern(&format!("{reference}{pat}"))).collect();
 
         let mut lines = Vec::new();
         {
@@ -853,34 +756,21 @@ impl Connection {
             let mut boxes: Vec<_> = account.mailboxes.values().collect();
             boxes.sort_by_key(|m| (m.name != "INBOX", m.name.clone()));
             for mbox in boxes {
-                if !patterns
-                    .iter()
-                    .any(|pat| wildcard_match(pat.as_bytes(), mbox.name.as_bytes()))
-                {
+                if !patterns.iter().any(|pat| wildcard_match(pat.as_bytes(), mbox.name.as_bytes())) {
                     continue;
                 }
-                if (subscribed_only && !mbox.subscribed)
-                    || (special_only && mbox.special_use.is_none())
-                {
+                if (subscribed_only && !mbox.subscribed) || (special_only && mbox.special_use.is_none()) {
                     continue;
                 }
                 let mut attrs = Vec::new();
                 if let Some(special) = mbox.special_use {
                     attrs.push(special.attribute());
                 }
-                attrs.push(if account.has_children(&mbox.name) {
-                    "\\HasChildren"
-                } else {
-                    "\\HasNoChildren"
-                });
+                attrs.push(if account.has_children(&mbox.name) { "\\HasChildren" } else { "\\HasNoChildren" });
                 if return_subscribed && mbox.subscribed {
                     attrs.push("\\Subscribed");
                 }
-                lines.push(format!(
-                    "{word} ({}) \"/\" {}",
-                    attrs.join(" "),
-                    wire::string(&mbox.name)
-                ));
+                lines.push(format!("{word} ({}) \"/\" {}", attrs.join(" "), wire::string(&mbox.name)));
             }
         }
         for line in lines {
@@ -991,11 +881,7 @@ impl Connection {
             };
             match event {
                 IdleEvent::Line(Ok(Some(line))) => {
-                    return if trim_eol(&line).eq_ignore_ascii_case(b"DONE") {
-                        ok("IDLE terminated")
-                    } else {
-                        bad("Expected DONE")
-                    };
+                    return if trim_eol(&line).eq_ignore_ascii_case(b"DONE") { ok("IDLE terminated") } else { bad("Expected DONE") };
                 }
                 IdleEvent::Line(_) | IdleEvent::Changed(false) => return no("Connection closed"),
                 IdleEvent::Changed(true) => {
@@ -1026,11 +912,7 @@ impl Connection {
                 self.store.notify();
             }
         }
-        ok(if expunge {
-            "CLOSE completed"
-        } else {
-            "UNSELECT completed"
-        })
+        ok(if expunge { "CLOSE completed" } else { "UNSELECT completed" })
     }
 
     fn expunge(&mut self, p: &mut Parser<'_>, user: &str, uid: bool) -> CmdResult {
@@ -1050,10 +932,7 @@ impl Connection {
             let mut inner = self.store.lock();
             inner.mailbox_mut(user, &sel.name).is_some_and(|mbox| {
                 let before = mbox.messages.len();
-                mbox.messages.retain(|m| {
-                    !(m.has_flag("\\Deleted")
-                        && set.as_ref().is_none_or(|s| s.contains(m.uid, max_uid)))
-                });
+                mbox.messages.retain(|m| !(m.has_flag("\\Deleted") && set.as_ref().is_none_or(|s| s.contains(m.uid, max_uid))));
                 before != mbox.messages.len()
             })
         };
@@ -1083,10 +962,7 @@ impl Connection {
                 }
             }
         }
-        let bounds = Bounds {
-            max_seq: sel.known.len() as u32,
-            max_uid: sel.known.last().map_or(0, |k| k.uid),
-        };
+        let bounds = Bounds { max_seq: sel.known.len() as u32, max_uid: sel.known.last().map_or(0, |k| k.uid) };
         (list, bounds)
     }
 
@@ -1095,10 +971,7 @@ impl Connection {
         let key = search::parse_program(p, true).map_err(search_failure)?;
         let (candidates, bounds) = self.candidates(user);
         let mut line = String::from("SEARCH");
-        for c in candidates
-            .iter()
-            .filter(|c| search::matches(&key, c, &bounds))
-        {
+        for c in candidates.iter().filter(|c| search::matches(&key, c, &bounds)) {
             line.push_str(&format!(" {}", if uid { c.uid } else { c.seq }));
         }
         self.untagged(&line);
@@ -1113,10 +986,7 @@ impl Connection {
         p.sp()?;
         let key = search::parse_keys(p).map_err(search_failure)?;
         let (candidates, bounds) = self.candidates(user);
-        let mut hits: Vec<Candidate> = candidates
-            .into_iter()
-            .filter(|c| search::matches(&key, c, &bounds))
-            .collect();
+        let mut hits: Vec<Candidate> = candidates.into_iter().filter(|c| search::matches(&key, c, &bounds)).collect();
         sort::sort(&mut hits, &criteria);
         let mut line = String::from("SORT");
         for c in &hits {
@@ -1142,13 +1012,10 @@ impl Connection {
         for (seq, msg_uid) in sel.targets(&set, uid) {
             let snapshot = {
                 let mut inner = store.lock();
-                inner
-                    .mailbox_mut(user, &sel.name)
-                    .and_then(|mbox| mbox.find_mut(msg_uid))
-                    .map(|m| {
-                        let changed = set_seen && add_flag(&mut m.flags, "\\Seen");
-                        (m.data.clone(), m.flags.clone(), m.internal_date, changed)
-                    })
+                inner.mailbox_mut(user, &sel.name).and_then(|mbox| mbox.find_mut(msg_uid)).map(|m| {
+                    let changed = set_seen && add_flag(&mut m.flags, "\\Seen");
+                    (m.data.clone(), m.flags.clone(), m.internal_date, changed)
+                })
             };
             let Some((data, flags, internal_date, changed)) = snapshot else {
                 continue;
@@ -1157,15 +1024,9 @@ impl Connection {
                 changed_any = true;
                 sel.known[seq as usize - 1].flags = flags.clone();
             }
-            let ctx = ItemCtx {
-                uid: msg_uid,
-                flags: &flags,
-                recent: sel.recent.contains(&msg_uid),
-                internal_date: &internal_date,
-                data: &data,
-            };
-            self.out
-                .extend_from_slice(format!("* {seq} FETCH (").as_bytes());
+            let ctx =
+                ItemCtx { uid: msg_uid, flags: &flags, recent: sel.recent.contains(&msg_uid), internal_date: &internal_date, data: &data };
+            self.out.extend_from_slice(format!("* {seq} FETCH (").as_bytes());
             for (i, att) in atts.iter().enumerate() {
                 if i > 0 {
                     self.out.push(b' ');
@@ -1224,26 +1085,23 @@ impl Connection {
         for (seq, msg_uid) in sel.targets(&set, uid) {
             let updated = {
                 let mut inner = store.lock();
-                inner
-                    .mailbox_mut(user, &sel.name)
-                    .and_then(|mbox| mbox.find_mut(msg_uid))
-                    .map(|m| {
-                        let before = m.flags.clone();
-                        match mode {
-                            Mode::Replace => m.flags = flags.clone(),
-                            Mode::Add => {
-                                for f in &flags {
-                                    add_flag(&mut m.flags, f);
-                                }
-                            }
-                            Mode::Remove => {
-                                for f in &flags {
-                                    remove_flag(&mut m.flags, f);
-                                }
+                inner.mailbox_mut(user, &sel.name).and_then(|mbox| mbox.find_mut(msg_uid)).map(|m| {
+                    let before = m.flags.clone();
+                    match mode {
+                        Mode::Replace => m.flags = flags.clone(),
+                        Mode::Add => {
+                            for f in &flags {
+                                add_flag(&mut m.flags, f);
                             }
                         }
-                        (m.flags.clone(), !same_flags(&before, &m.flags))
-                    })
+                        Mode::Remove => {
+                            for f in &flags {
+                                remove_flag(&mut m.flags, f);
+                            }
+                        }
+                    }
+                    (m.flags.clone(), !same_flags(&before, &m.flags))
+                })
             };
             let Some((new_flags, changed)) = updated else {
                 continue;
@@ -1282,10 +1140,7 @@ impl Connection {
         let (validity, src_uids, dst_uids) = {
             let mut inner = self.store.lock();
             let messages: Vec<store::Message> = match inner.mailbox(user, &source) {
-                Some(mbox) => targets
-                    .iter()
-                    .filter_map(|&(_, u)| mbox.find(u).cloned())
-                    .collect(),
+                Some(mbox) => targets.iter().filter_map(|&(_, u)| mbox.find(u).cloned()).collect(),
                 None => Vec::new(),
             };
             let Some(target) = inner.mailbox_mut(user, &dest) else {
@@ -1305,18 +1160,10 @@ impl Connection {
             (validity, src_uids, dst_uids)
         };
         if src_uids.is_empty() {
-            return ok(if is_move {
-                "No messages moved"
-            } else {
-                "No messages copied"
-            });
+            return ok(if is_move { "No messages moved" } else { "No messages copied" });
         }
         self.store.notify();
-        let code = format!(
-            "[COPYUID {validity} {} {}]",
-            wire::uid_set(&src_uids),
-            wire::uid_set(&dst_uids)
-        );
+        let code = format!("[COPYUID {validity} {} {}]", wire::uid_set(&src_uids), wire::uid_set(&dst_uids));
         if is_move {
             self.untagged(&format!("OK {code} Moved"));
             ok("MOVE completed")

@@ -4,9 +4,7 @@ use chrono::{DateTime, FixedOffset};
 
 /// Whether `s` can be sent as a quoted string.
 fn quotable(s: &[u8]) -> bool {
-    s.len() < 1024
-        && s.iter()
-            .all(|&c| (0x20..0x7f).contains(&c) && c != b'"' && c != b'\\')
+    s.len() < 1024 && s.iter().all(|&c| (0x20..0x7f).contains(&c) && c != b'"' && c != b'\\')
 }
 
 /// Appends `{n}\r\n` followed by the data.

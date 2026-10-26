@@ -65,10 +65,7 @@ impl Default for Config {
             smtp_port: 1025,
             sieve_port: 4190,
             seed_demo_data: true,
-            users: vec![
-                ("alice@lowmail.test".to_owned(), "alice".to_owned()),
-                ("bob@lowmail.test".to_owned(), "bob".to_owned()),
-            ],
+            users: vec![("alice@lowmail.test".to_owned(), "alice".to_owned()), ("bob@lowmail.test".to_owned(), "bob".to_owned())],
         }
     }
 }
@@ -115,19 +112,11 @@ pub async fn start(config: Config) -> anyhow::Result<Server> {
     ];
     tracing::info!(%imap_addr, %smtp_addr, %sieve_addr, "lowmail test server listening");
 
-    Ok(Server {
-        store,
-        imap_addr,
-        smtp_addr,
-        sieve_addr,
-        tasks,
-    })
+    Ok(Server { store, imap_addr, smtp_addr, sieve_addr, tasks })
 }
 
 async fn bind(ip: IpAddr, port: u16, what: &str) -> anyhow::Result<TcpListener> {
-    TcpListener::bind((ip, port))
-        .await
-        .with_context(|| format!("cannot bind {what} listener on {ip}:{port}"))
+    TcpListener::bind((ip, port)).await.with_context(|| format!("cannot bind {what} listener on {ip}:{port}"))
 }
 
 /// Accepts connections until the task is aborted; aborting drops the
@@ -185,16 +174,10 @@ impl Server {
             assert!(inner.account(user).is_some(), "unknown user {user}");
             let name = store::normalize_mailbox(mailbox);
             if inner.mailbox(user, &name).is_none() {
-                inner
-                    .create_mailbox(user, &name, None)
-                    .expect("mailbox can be created");
+                inner.create_mailbox(user, &name, None).expect("mailbox can be created");
             }
             let mbox = inner.mailbox_mut(user, &name).expect("mailbox exists");
-            mbox.append(
-                Arc::new(MessageData::new(raw.to_vec())),
-                flags,
-                chrono::Local::now().fixed_offset(),
-            )
+            mbox.append(Arc::new(MessageData::new(raw.to_vec())), flags, chrono::Local::now().fixed_offset())
         };
         self.store.notify();
         uid
@@ -210,13 +193,7 @@ impl Server {
         let inner = self.store.lock();
         inner
             .account(user)
-            .map(|account| {
-                account
-                    .scripts
-                    .iter()
-                    .map(|s| (s.name.clone(), s.content.clone(), s.active))
-                    .collect()
-            })
+            .map(|account| account.scripts.iter().map(|s| (s.name.clone(), s.content.clone(), s.active)).collect())
             .unwrap_or_default()
     }
 

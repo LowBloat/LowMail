@@ -68,14 +68,27 @@ impl Config {
         let imap_host = env("IMAP_HOST").unwrap_or_else(|| "localhost".into());
         let imap_security = security("IMAP_SECURITY", Security::Tls)?;
         let imap = ServerTemplate {
-            port: port("IMAP_PORT", match imap_security { Security::Tls => 993, _ => 143 })?,
+            port: port(
+                "IMAP_PORT",
+                match imap_security {
+                    Security::Tls => 993,
+                    _ => 143,
+                },
+            )?,
             host: imap_host.clone(),
             security: imap_security,
         };
         let smtp_security = security("SMTP_SECURITY", Security::StartTls)?;
         let smtp = ServerTemplate {
             host: env("SMTP_HOST").unwrap_or_else(|| imap_host.clone()),
-            port: port("SMTP_PORT", match smtp_security { Security::Tls => 465, Security::StartTls => 587, Security::None => 25 })?,
+            port: port(
+                "SMTP_PORT",
+                match smtp_security {
+                    Security::Tls => 465,
+                    Security::StartTls => 587,
+                    Security::None => 25,
+                },
+            )?,
             security: smtp_security,
         };
         let sieve = if flag("SIEVE").unwrap_or(true) {

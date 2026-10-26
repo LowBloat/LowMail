@@ -81,9 +81,10 @@ impl Conn {
         }
 
         if ep.security == Security::StartTls {
-            client.run_command_and_check_ok("STARTTLS", None).await.map_err(|e| {
-                Error::new(ErrorKind::Tls, "The IMAP server does not support STARTTLS.").with_detail(e.to_string())
-            })?;
+            client
+                .run_command_and_check_ok("STARTTLS", None)
+                .await
+                .map_err(|e| Error::new(ErrorKind::Tls, "The IMAP server does not support STARTTLS.").with_detail(e.to_string()))?;
             let MailStream::Plain(tcp) = client.into_inner() else {
                 return Err(Error::internal("Unexpected stream state."));
             };
@@ -102,9 +103,7 @@ impl Conn {
         conn.refresh_caps().await?;
         if conn.caps.has("ID") {
             // Some servers (and their logs) like to know the client.
-            let _ = conn
-                .raw(&format!("ID (\"name\" \"LowMail\" \"version\" \"{}\")", env!("CARGO_PKG_VERSION")))
-                .await;
+            let _ = conn.raw(&format!("ID (\"name\" \"LowMail\" \"version\" \"{}\")", env!("CARGO_PKG_VERSION"))).await;
         }
         Ok(conn)
     }

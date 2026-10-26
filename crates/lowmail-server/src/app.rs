@@ -82,7 +82,8 @@ pub fn router(state: Shared) -> Router {
         .route("/login", post(login))
         .route("/logout", post(logout))
         .route("/session", get(session_info))
-        .route("/rpc/{method}", post(rpc))
+        // Drafts carry pasted images inline, so messages can be large.
+        .route("/rpc/{method}", post(rpc).layer(DefaultBodyLimit::max(48 * 1024 * 1024)))
         .route("/events", get(events))
         .route("/upload", post(upload).layer(DefaultBodyLimit::max(lowmail_core::service::MAX_UPLOAD + 1024 * 1024)))
         .route("/download/attachment", get(download_attachment))
@@ -131,9 +132,10 @@ fn client_ip(state: &AppState, addr: SocketAddr, headers: &HeaderMap) -> IpAddr 
 }
 
 fn secure_request(state: &AppState, headers: &HeaderMap) -> bool {
-    state.config.secure_cookies.unwrap_or_else(|| {
-        headers.get("x-forwarded-proto").and_then(|v| v.to_str().ok()).is_some_and(|v| v.eq_ignore_ascii_case("https"))
-    })
+    state
+        .config
+        .secure_cookies
+        .unwrap_or_else(|| headers.get("x-forwarded-proto").and_then(|v| v.to_str().ok()).is_some_and(|v| v.eq_ignore_ascii_case("https")))
 }
 
 fn session(state: &AppState, jar: &CookieJar) -> ApiResult<(String, Arc<Session>)> {
@@ -194,12 +196,8 @@ async fn login(
     tracing::info!(user = %email, %ip, "signed in");
     let info = client.info();
     let id = state.sessions.create(client, email);
-    let cookie = Cookie::build((COOKIE, id))
-        .http_only(true)
-        .same_site(SameSite::Strict)
-        .secure(secure_request(&state, &headers))
-        .path("/")
-        .build();
+    let cookie =
+        Cookie::build((COOKIE, id)).http_only(true).same_site(SameSite::Strict).secure(secure_request(&state, &headers)).path("/").build();
     Ok((jar.add(cookie), Json(json!({ "account": info }))))
 }
 
@@ -240,7 +238,9 @@ async fn events(State(state): State<Shared>, jar: CookieJar) -> ApiResult<Sse<im
 async fn upload(State(state): State<Shared>, jar: CookieJar, mut multipart: Multipart) -> ApiResult<Json<Value>> {
     let (_, s) = session(&state, &jar)?;
     let mut uploads = Vec::new();
-    while let Some(field) = multipart.next_field().await.map_err(|e| Error::invalid("The upload was interrupted.").with_detail(e.to_string()))? {
+    while let Some(field) =
+        multipart.next_field().await.map_err(|e| Error::invalid("The upload was interrupted.").with_detail(e.to_string()))?
+    {
         let filename = field.file_name().unwrap_or("file").to_string();
         let content_type = field.content_type().unwrap_or("").to_string();
         let bytes = field.bytes().await.map_err(|e| {
@@ -255,7 +255,8 @@ async fn upload(State(state): State<Shared>, jar: CookieJar, mut multipart: Mult
 fn disposition(kind: &str, filename: &str) -> HeaderValue {
     let ascii: String = filename.chars().map(|c| if c.is_ascii_graphic() && c != '"' && c != '\\' || c == ' ' { c } else { '_' }).collect();
     let encoded = percent_encoding::utf8_percent_encode(filename, percent_encoding::NON_ALPHANUMERIC).to_string();
-    HeaderValue::from_str(&format!("{kind}; filename=\"{ascii}\"; filename*=UTF-8''{encoded}")).unwrap_or(HeaderValue::from_static("attachment"))
+    HeaderValue::from_str(&format!("{kind}; filename=\"{ascii}\"; filename*=UTF-8''{encoded}"))
+        .unwrap_or(HeaderValue::from_static("attachment"))
 }
 
 fn file_response(filename: &str, content_type: &str, bytes: Vec<u8>, inline: bool) -> Response {
@@ -276,7 +277,10 @@ fn file_response(filename: &str, content_type: &str, bytes: Vec<u8>, inline: boo
     h.insert(header::CONTENT_DISPOSITION, disposition(if inline { "inline" } else { "attachment" }, filename));
     if ct != "application/pdf" {
         // Never let a downloaded file run as a page of this origin.
-        h.insert(header::CONTENT_SECURITY_POLICY, HeaderValue::from_static("sandbox; default-src 'none'; img-src data:; media-src 'self'; style-src 'unsafe-inline'"));
+        h.insert(
+            header::CONTENT_SECURITY_POLICY,
+            HeaderValue::from_static("sandbox; default-src 'none'; img-src data:; media-src 'self'; style-src 'unsafe-inline'"),
+        );
     }
     h.insert(header::CACHE_CONTROL, HeaderValue::from_static("private, max-age=300"));
     resp

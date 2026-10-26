@@ -82,15 +82,11 @@ pub fn summary_from_headers(
                 uid,
                 folder: folder.to_string(),
                 message_id: msg.message_id().map(str::to_string),
-                subject: msg.subject().map(|s| unfold(s)).unwrap_or_default(),
+                subject: msg.subject().map(unfold).unwrap_or_default(),
                 from: addresses(msg.from()),
                 to: addresses(msg.to()),
                 cc: addresses(msg.cc()),
-                date: msg
-                    .date()
-                    .map(|d| d.to_timestamp() * 1000)
-                    .or(internal_date)
-                    .unwrap_or(0),
+                date: msg.date().map(|d| d.to_timestamp() * 1000).or(internal_date).unwrap_or(0),
                 size,
                 flags,
                 has_attachments,
@@ -121,14 +117,14 @@ pub fn summary_from_headers(
 }
 
 fn content_type_of(part: &MessagePart<'_>) -> String {
-    part.content_type()
-        .map(|ct| format!("{}/{}", ct.ctype(), ct.subtype().unwrap_or("octet-stream")).to_ascii_lowercase())
-        .unwrap_or_else(|| match part.kind() {
+    part.content_type().map(|ct| format!("{}/{}", ct.ctype(), ct.subtype().unwrap_or("octet-stream")).to_ascii_lowercase()).unwrap_or_else(
+        || match part.kind() {
             PartKind::Html => "text/html".into(),
             PartKind::Text => "text/plain".into(),
             PartKind::Message(_) => "message/rfc822".into(),
             _ => "application/octet-stream".into(),
-        })
+        },
+    )
 }
 
 fn extension_for(content_type: &str) -> &'static str {
@@ -239,8 +235,8 @@ pub fn parse_message(raw: &[u8], folder: &str, uid: u32, flags: Flags, opts: &Re
     for (index, part) in root.attachments().enumerate() {
         let ct = content_type_of(&part);
         let cid = part.content_id().map(|c| c.trim_matches(|c| c == '<' || c == '>').to_string());
-        let shown_inline = cid.as_ref().is_some_and(|c| sanitized.used_cids.contains(c))
-            || (part.in_html_body() && ct.starts_with("image/"));
+        let shown_inline =
+            cid.as_ref().is_some_and(|c| sanitized.used_cids.contains(c)) || (part.in_html_body() && ct.starts_with("image/"));
         attachments.push(AttachmentInfo {
             part: part.id().to_string(),
             filename: filename_of(&part, index),
@@ -281,11 +277,7 @@ pub fn parse_message(raw: &[u8], folder: &str, uid: u32, flags: Flags, opts: &Re
     for h in headers.iter() {
         let value = match h.value() {
             HeaderValue::Text(t) => unfold(t),
-            HeaderValue::Address(list) => addresses(Some(list))
-                .iter()
-                .map(format_address)
-                .collect::<Vec<_>>()
-                .join(", "),
+            HeaderValue::Address(list) => addresses(Some(list)).iter().map(format_address).collect::<Vec<_>>().join(", "),
             _ => unfold(&String::from_utf8_lossy(h.raw_value())),
         };
         all_headers.push((h.raw_name().to_string(), value));

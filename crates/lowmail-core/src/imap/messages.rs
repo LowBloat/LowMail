@@ -86,15 +86,7 @@ impl Conn {
                 let internal = fetch.internal_date().map(|d| d.timestamp_millis());
                 let has_attachments = fetch.bodystructure().map(has_attachments).unwrap_or(false);
                 let header = fetch.header().unwrap_or_default();
-                let summary = mime::summary_from_headers(
-                    header,
-                    folder,
-                    uid,
-                    fetch.size.unwrap_or(0),
-                    internal,
-                    flags,
-                    has_attachments,
-                );
+                let summary = mime::summary_from_headers(header, folder, uid, fetch.size.unwrap_or(0), internal, flags, has_attachments);
                 found.insert(uid, summary);
             }
         }
@@ -104,8 +96,7 @@ impl Conn {
 
     /// The whole message, without marking it read.
     pub async fn fetch_raw(&mut self, uid: u32) -> Result<(Vec<u8>, Flags)> {
-        let fetches: Vec<_> =
-            self.session.uid_fetch(uid.to_string(), "(UID FLAGS BODY.PEEK[])").await?.try_collect().await?;
+        let fetches: Vec<_> = self.session.uid_fetch(uid.to_string(), "(UID FLAGS BODY.PEEK[])").await?.try_collect().await?;
         self.drain_unsolicited();
         for fetch in &fetches {
             if fetch.uid == Some(uid)

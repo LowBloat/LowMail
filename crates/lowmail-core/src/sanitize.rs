@@ -21,14 +21,61 @@ pub struct Sanitized {
 }
 
 const EXTRA_TAGS: &[&str] = &[
-    "style", "center", "font", "big", "small", "strike", "u", "s", "tt", "caption", "col", "colgroup", "tbody",
-    "thead", "tfoot", "wbr", "picture", "section", "article", "header", "footer", "main", "nav", "aside", "figure",
-    "figcaption", "mark", "time",
+    "style",
+    "center",
+    "font",
+    "big",
+    "small",
+    "strike",
+    "u",
+    "s",
+    "tt",
+    "caption",
+    "col",
+    "colgroup",
+    "tbody",
+    "thead",
+    "tfoot",
+    "wbr",
+    "picture",
+    "section",
+    "article",
+    "header",
+    "footer",
+    "main",
+    "nav",
+    "aside",
+    "figure",
+    "figcaption",
+    "mark",
+    "time",
 ];
 
 const GENERIC_ATTRS: &[&str] = &[
-    "style", "class", "id", "align", "valign", "bgcolor", "width", "height", "border", "cellpadding", "cellspacing",
-    "color", "face", "size", "dir", "lang", "title", "role", "colspan", "rowspan", "nowrap", "start", "type", "alt",
+    "style",
+    "class",
+    "id",
+    "align",
+    "valign",
+    "bgcolor",
+    "width",
+    "height",
+    "border",
+    "cellpadding",
+    "cellspacing",
+    "color",
+    "face",
+    "size",
+    "dir",
+    "lang",
+    "title",
+    "role",
+    "colspan",
+    "rowspan",
+    "nowrap",
+    "start",
+    "type",
+    "alt",
 ];
 
 /// Sanitizes an HTML body. `cids` maps Content-IDs (without brackets) to
@@ -54,50 +101,44 @@ pub fn sanitize(input: &str, cids: &HashMap<String, String>, allow_remote: bool)
         .url_relative(ammonia::UrlRelative::Deny);
 
     let (remote_cb, used_cb, cids_cb) = (remote.clone(), used.clone(), cids.clone());
-    builder.attribute_filter(move |element, attribute, value| {
-        match (element, attribute) {
-            (_, "style") => Some(Cow::Owned(filter_css(value, allow_remote, &remote_cb))),
-            ("img", "src") => {
-                let v = value.trim();
-                let lower = v.to_ascii_lowercase();
-                if let Some(cid) = lower.strip_prefix("cid:") {
-                    let key = cid.trim_matches(|c| c == '<' || c == '>');
-                    let found = cids_cb.iter().find(|(k, _)| k.eq_ignore_ascii_case(key));
-                    if let Some((k, url)) = found {
-                        used_cb.lock().insert(k.clone());
-                        return Some(Cow::Owned(url.clone()));
-                    }
-                    return Some(Cow::Borrowed(BLOCKED_IMAGE));
+    builder.attribute_filter(move |element, attribute, value| match (element, attribute) {
+        (_, "style") => Some(Cow::Owned(filter_css(value, allow_remote, &remote_cb))),
+        ("img", "src") => {
+            let v = value.trim();
+            let lower = v.to_ascii_lowercase();
+            if let Some(cid) = lower.strip_prefix("cid:") {
+                let key = cid.trim_matches(|c| c == '<' || c == '>');
+                let found = cids_cb.iter().find(|(k, _)| k.eq_ignore_ascii_case(key));
+                if let Some((k, url)) = found {
+                    used_cb.lock().insert(k.clone());
+                    return Some(Cow::Owned(url.clone()));
                 }
-                if lower.starts_with("data:image/") {
-                    return Some(Cow::Owned(v.to_string()));
-                }
-                if lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("//") {
-                    remote_cb.store(true, Ordering::Relaxed);
-                    return if allow_remote { Some(Cow::Owned(v.to_string())) } else { Some(Cow::Borrowed(BLOCKED_IMAGE)) };
-                }
-                None
+                return Some(Cow::Borrowed(BLOCKED_IMAGE));
             }
-            (_, "background") => {
-                let lower = value.trim().to_ascii_lowercase();
-                if lower.starts_with("http") {
-                    remote_cb.store(true, Ordering::Relaxed);
-                    if allow_remote {
-                        return Some(Cow::Owned(value.to_string()));
-                    }
-                }
-                None
+            if lower.starts_with("data:image/") {
+                return Some(Cow::Owned(v.to_string()));
             }
-            ("a", "href") => {
-                let lower = value.trim().to_ascii_lowercase();
-                if lower.starts_with("data:") || lower.starts_with("cid:") {
-                    None
-                } else {
-                    Some(Cow::Owned(value.to_string()))
-                }
+            if lower.starts_with("http://") || lower.starts_with("https://") || lower.starts_with("//") {
+                remote_cb.store(true, Ordering::Relaxed);
+                return if allow_remote { Some(Cow::Owned(v.to_string())) } else { Some(Cow::Borrowed(BLOCKED_IMAGE)) };
             }
-            _ => Some(Cow::Owned(value.to_string())),
+            None
         }
+        (_, "background") => {
+            let lower = value.trim().to_ascii_lowercase();
+            if lower.starts_with("http") {
+                remote_cb.store(true, Ordering::Relaxed);
+                if allow_remote {
+                    return Some(Cow::Owned(value.to_string()));
+                }
+            }
+            None
+        }
+        ("a", "href") => {
+            let lower = value.trim().to_ascii_lowercase();
+            if lower.starts_with("data:") || lower.starts_with("cid:") { None } else { Some(Cow::Owned(value.to_string())) }
+        }
+        _ => Some(Cow::Owned(value.to_string())),
     });
 
     let cleaned = builder.clean(input).to_string();
@@ -272,9 +313,7 @@ fn linkify_escaped(text: &str) -> String {
 
 /// HTML to readable plain text (for the text part of sent messages and quotes).
 pub fn html_to_text(html: &str) -> String {
-    let text = html2text::config::plain()
-        .string_from_read(html.as_bytes(), 78)
-        .unwrap_or_else(|_| ammonia::clean_text(html));
+    let text = html2text::config::plain().string_from_read(html.as_bytes(), 78).unwrap_or_else(|_| ammonia::clean_text(html));
     text.lines().map(|l| l.trim_end()).collect::<Vec<_>>().join("\n").trim().to_string()
 }
 

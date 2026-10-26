@@ -14,14 +14,7 @@ pub const TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Starts a seeded server on ephemeral ports.
 pub async fn server() -> Server {
-    lowmail_testserver::start(Config {
-        imap_port: 0,
-        smtp_port: 0,
-        sieve_port: 0,
-        ..Config::default()
-    })
-    .await
-    .expect("server starts")
+    lowmail_testserver::start(Config { imap_port: 0, smtp_port: 0, sieve_port: 0, ..Config::default() }).await.expect("server starts")
 }
 
 pub type ImapSession = async_imap::Session<TcpStream>;
@@ -31,15 +24,8 @@ pub async fn imap_login(server: &Server, user: &str, password: &str) -> ImapSess
     let stream = TcpStream::connect(server.imap_addr()).await.unwrap();
     let mut client = async_imap::Client::new(stream);
     let greeting = client.read_response().await.unwrap().expect("greeting");
-    assert!(matches!(
-        greeting.parsed(),
-        async_imap::imap_proto::Response::Data { .. }
-    ));
-    client
-        .login(user, password)
-        .await
-        .map_err(|(e, _)| e)
-        .unwrap()
+    assert!(matches!(greeting.parsed(), async_imap::imap_proto::Response::Data { .. }));
+    client.login(user, password).await.map_err(|(e, _)| e).unwrap()
 }
 
 /// Line-oriented raw protocol client.
@@ -52,10 +38,7 @@ impl Raw {
     pub async fn connect(addr: std::net::SocketAddr) -> Raw {
         let stream = TcpStream::connect(addr).await.unwrap();
         let (r, w) = stream.into_split();
-        Raw {
-            reader: BufReader::new(r),
-            writer: w,
-        }
+        Raw { reader: BufReader::new(r), writer: w }
     }
 
     pub async fn send(&mut self, data: &str) {
@@ -70,23 +53,15 @@ impl Raw {
     /// Next line without CRLF.
     pub async fn line(&mut self) -> String {
         let mut buf = Vec::new();
-        let n = tokio::time::timeout(TIMEOUT, self.reader.read_until(b'\n', &mut buf))
-            .await
-            .expect("timely response")
-            .unwrap();
+        let n = tokio::time::timeout(TIMEOUT, self.reader.read_until(b'\n', &mut buf)).await.expect("timely response").unwrap();
         assert!(n > 0, "connection closed");
-        String::from_utf8_lossy(&buf)
-            .trim_end_matches(['\r', '\n'])
-            .to_owned()
+        String::from_utf8_lossy(&buf).trim_end_matches(['\r', '\n']).to_owned()
     }
 
     /// Reads exactly `n` bytes.
     pub async fn bytes(&mut self, n: usize) -> Vec<u8> {
         let mut buf = vec![0; n];
-        tokio::time::timeout(TIMEOUT, self.reader.read_exact(&mut buf))
-            .await
-            .expect("timely response")
-            .unwrap();
+        tokio::time::timeout(TIMEOUT, self.reader.read_exact(&mut buf)).await.expect("timely response").unwrap();
         buf
     }
 

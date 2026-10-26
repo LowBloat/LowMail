@@ -104,14 +104,14 @@ fn decode_qp(value: &str) -> String {
     let mut out = Vec::new();
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'=' && i + 2 < bytes.len() + 1 {
-            if let (Some(h), Some(l)) = (bytes.get(i + 1), bytes.get(i + 2))
-                && let Ok(v) = u8::from_str_radix(&format!("{}{}", *h as char, *l as char), 16)
-            {
-                out.push(v);
-                i += 3;
-                continue;
-            }
+        if bytes[i] == b'='
+            && i + 2 < bytes.len() + 1
+            && let (Some(h), Some(l)) = (bytes.get(i + 1), bytes.get(i + 2))
+            && let Ok(v) = u8::from_str_radix(&format!("{}{}", *h as char, *l as char), 16)
+        {
+            out.push(v);
+            i += 3;
+            continue;
         }
         out.push(bytes[i]);
         i += 1;
@@ -172,11 +172,16 @@ pub fn import(text: &str) -> Vec<Contact> {
                         }
                     }
                     "TEL" => c.phones.push(unescape(value.trim().trim_start_matches("tel:"))),
-                    "ORG" => c.organization = split_unescaped(&value, ';').into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(", "),
+                    "ORG" => {
+                        c.organization = split_unescaped(&value, ';').into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(", ")
+                    }
                     "TITLE" => c.job_title = unescape(value.trim()),
                     "NOTE" => c.notes = unescape(&value),
                     "BDAY" => c.birthday = Some(value.trim().to_string()),
-                    "CATEGORIES" => c.groups = split_unescaped(&value, ',').into_iter().map(|g| g.trim().to_string()).filter(|g| !g.is_empty()).collect(),
+                    "CATEGORIES" => {
+                        c.groups =
+                            split_unescaped(&value, ',').into_iter().map(|g| g.trim().to_string()).filter(|g| !g.is_empty()).collect()
+                    }
                     _ => {}
                 }
             }
@@ -247,8 +252,22 @@ pub fn import_csv(text: &str) -> Vec<Contact> {
     let name_cols = col(&["name", "display name", "nome", "nome de exibição", "full name"]);
     let first_cols = col(&["first name", "given name", "nome próprio", "primeiro nome"]);
     let last_cols = col(&["last name", "family name", "sobrenome"]);
-    let email_cols = col(&["e-mail", "email", "e-mail address", "email address", "e-mail 2 address", "e-mail 3 address", "email 2", "email 3", "e-mail 1 - value", "e-mail 2 - value", "endereço de email", "endereço de e-mail"]);
-    let phone_cols = col(&["phone", "telefone", "mobile phone", "business phone", "home phone", "phone 1 - value", "phone 2 - value", "celular"]);
+    let email_cols = col(&[
+        "e-mail",
+        "email",
+        "e-mail address",
+        "email address",
+        "e-mail 2 address",
+        "e-mail 3 address",
+        "email 2",
+        "email 3",
+        "e-mail 1 - value",
+        "e-mail 2 - value",
+        "endereço de email",
+        "endereço de e-mail",
+    ]);
+    let phone_cols =
+        col(&["phone", "telefone", "mobile phone", "business phone", "home phone", "phone 1 - value", "phone 2 - value", "celular"]);
     let org_cols = col(&["company", "organization", "organization 1 - name", "empresa", "organização"]);
     let notes_cols = col(&["notes", "notas", "observações"]);
     let get = |row: &Vec<String>, cols: &[usize]| -> Vec<String> {

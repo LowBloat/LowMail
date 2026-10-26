@@ -5,11 +5,7 @@ use base64::engine::general_purpose::STANDARD;
 
 /// Decodes base64 text, ignoring surrounding whitespace.
 pub(crate) fn decode_base64(text: &[u8]) -> Option<Vec<u8>> {
-    let text: Vec<u8> = text
-        .iter()
-        .copied()
-        .filter(|b| !b.is_ascii_whitespace())
-        .collect();
+    let text: Vec<u8> = text.iter().copied().filter(|b| !b.is_ascii_whitespace()).collect();
     STANDARD.decode(text).ok()
 }
 
@@ -37,10 +33,7 @@ mod tests {
     #[test]
     fn plain() {
         let b64 = encode_base64(b"\0alice@lowmail.test\0alice");
-        assert_eq!(
-            decode_plain(b64.as_bytes()),
-            Some(("alice@lowmail.test".into(), "alice".into()))
-        );
+        assert_eq!(decode_plain(b64.as_bytes()), Some(("alice@lowmail.test".into(), "alice".into())));
         assert_eq!(decode_plain(b"!!"), None);
     }
 }

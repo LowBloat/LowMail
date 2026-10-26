@@ -188,13 +188,7 @@ pub fn prepare(
     let from = identity.map(|i| Address::new(Some(i.name.clone()), i.email.clone()));
     let w = words(&style.locale);
     let s = &original.summary;
-    let mut draft = Draft {
-        mode,
-        identity_id: identity.map(|i| i.id.clone()),
-        from,
-        source: Some(source),
-        ..Default::default()
-    };
+    let mut draft = Draft { mode, identity_id: identity.map(|i| i.id.clone()), from, source: Some(source), ..Default::default() };
     let original_html = original.html.clone().unwrap_or_default();
     let original_text = original.text.clone().unwrap_or_else(|| html_to_text(&original_html));
     let sender = s.from.first().map(format_address).unwrap_or_default();
@@ -238,7 +232,8 @@ pub fn prepare(
                     escape(&header),
                     original_html
                 );
-                draft.html = Some(if style.reply_on_top { format!("<p><br></p><p><br></p>{quote}") } else { format!("{quote}<p><br></p>") });
+                draft.html =
+                    Some(if style.reply_on_top { format!("<p><br></p><p><br></p>{quote}") } else { format!("{quote}<p><br></p>") });
                 draft.text = String::new();
             } else {
                 let quote = format!("{header}\n{}", quote_text(&original_text));
@@ -259,8 +254,7 @@ pub fn prepare(
                     lines.push((w.cc, address_line(&s.cc)));
                 }
                 if html {
-                    let rows: String =
-                        lines.iter().map(|(k, v)| format!("<b>{}:</b> {}<br>", escape(k), escape(v))).collect();
+                    let rows: String = lines.iter().map(|(k, v)| format!("<b>{}:</b> {}<br>", escape(k), escape(v))).collect();
                     draft.html = Some(format!(
                         "<p><br></p><p><br></p><div class=\"lm-forward\">{}<br>{rows}<br></div>{original_html}",
                         escape(w.forwarded)
@@ -322,8 +316,13 @@ pub fn draft_meta(message: &Message) -> Option<DraftMeta> {
     serde_json::from_slice(&bytes).ok()
 }
 
+/// Header text without line breaks, so nothing can add header fields.
+fn one_line(s: &str) -> String {
+    s.chars().map(|c| if c == '\r' || c == '\n' || c == '\0' { ' ' } else { c }).collect()
+}
+
 fn mb_address(a: &Address) -> MbAddress<'static> {
-    MbAddress::new_address(a.name.clone().filter(|n| !n.is_empty()), a.email.clone())
+    MbAddress::new_address(a.name.as_deref().map(one_line).filter(|n| !n.trim().is_empty()), one_line(a.email.trim()))
 }
 
 fn mb_list(list: &[Address]) -> MbAddress<'static> {
@@ -331,10 +330,7 @@ fn mb_list(list: &[Address]) -> MbAddress<'static> {
 }
 
 pub fn validate_address(email: &str) -> Result<()> {
-    email
-        .parse::<lettre::Address>()
-        .map(|_| ())
-        .map_err(|_| Error::invalid(format!("Invalid e-mail address: {email}")))
+    email.parse::<lettre::Address>().map(|_| ()).map_err(|_| Error::invalid(format!("Invalid e-mail address: {email}")))
 }
 
 /// Pulls `data:` images out of the HTML into inline parts referenced by `cid:`.
@@ -355,9 +351,8 @@ fn extract_data_images(html: &str, domain: &str) -> (String, Vec<ResolvedAttachm
         let Some(end) = rest[pos..].find(q).map(|e| pos + e) else { break };
         let url = &rest[pos..end];
         let parsed = url.strip_prefix("data:").and_then(|u| u.split_once(";base64,"));
-        match parsed.and_then(|(ct, data)| {
-            base64::engine::general_purpose::STANDARD.decode(data.trim()).ok().map(|b| (ct.to_string(), b))
-        }) {
+        match parsed.and_then(|(ct, data)| base64::engine::general_purpose::STANDARD.decode(data.trim()).ok().map(|b| (ct.to_string(), b)))
+        {
             Some((ct, bytes)) => {
                 let cid = format!("{}@{}", uuid::Uuid::new_v4().simple(), domain);
                 let ext = ct.split('/').nth(1).unwrap_or("png").split('+').next().unwrap_or("png").to_string();
@@ -387,17 +382,24 @@ pub struct Built {
 
 /// Builds the MIME message. `include_bcc` is true for the copies kept in
 /// Sent and Drafts and false for the one handed to the SMTP server.
-pub fn build(draft: &Draft, from: &Address, attachments: &[ResolvedAttachment], include_bcc: bool, meta: Option<&DraftMeta>) -> Result<Built> {
+pub fn build(
+    draft: &Draft,
+    from: &Address,
+    attachments: &[ResolvedAttachment],
+    include_bcc: bool,
+    meta: Option<&DraftMeta>,
+) -> Result<Built> {
     let domain = from.email.rsplit('@').next().unwrap_or("lowmail.local").to_string();
     let message_id = draft
         .message_id
-        .clone()
-        .filter(|id| !id.trim().is_empty())
+        .as_deref()
+        .map(one_line)
+        .filter(|id| !id.trim().is_empty() && !id.contains(' '))
         .unwrap_or_else(|| format!("{}@{}", uuid::Uuid::new_v4(), domain));
 
     let mut builder = MessageBuilder::new()
         .from(mb_address(from))
-        .subject(Text::new(draft.subject.clone()))
+        .subject(Text::new(one_line(&draft.subject)))
         .message_id(MessageId::new(message_id.clone()))
         .date(chrono::Utc::now().timestamp())
         .header("User-Agent", Raw::new(format!("LowMail/{}", env!("CARGO_PKG_VERSION"))));
@@ -414,10 +416,10 @@ pub fn build(draft: &Draft, from: &Address, attachments: &[ResolvedAttachment], 
         builder = builder.reply_to(mb_list(&draft.reply_to));
     }
     if let Some(id) = draft.in_reply_to.as_ref().filter(|s| !s.is_empty()) {
-        builder = builder.in_reply_to(MessageId::new(id.clone()));
+        builder = builder.in_reply_to(MessageId::new(one_line(id)));
     }
     if !draft.references.is_empty() {
-        builder = builder.references(MessageId::from(draft.references.clone()));
+        builder = builder.references(MessageId::from(draft.references.iter().map(|r| one_line(r)).collect::<Vec<_>>()));
     }
     match draft.priority {
         Priority::High => {
@@ -460,9 +462,7 @@ pub fn build(draft: &Draft, from: &Address, attachments: &[ResolvedAttachment], 
     let text_part = MimePart::new("text/plain", normalize_newlines(&text));
     let body_part = match html {
         Some(h) => {
-            let doc = format!(
-                "<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body>{h}</body></html>"
-            );
+            let doc = format!("<!DOCTYPE html><html><head><meta charset=\"utf-8\"></head><body>{h}</body></html>");
             let html_part = MimePart::new("text/html", doc);
             let html_part = if inline.is_empty() {
                 html_part
@@ -492,10 +492,7 @@ pub fn build(draft: &Draft, from: &Address, attachments: &[ResolvedAttachment], 
         }
         MimePart::new("multipart/mixed", mixed)
     };
-    let raw = builder
-        .body(body)
-        .write_to_vec()
-        .map_err(|e| Error::internal("Could not build the message.").with_detail(e.to_string()))?;
+    let raw = builder.body(body).write_to_vec().map_err(|e| Error::internal("Could not build the message.").with_detail(e.to_string()))?;
     Ok(Built { message_id, raw })
 }
 
@@ -521,7 +518,28 @@ mod tests {
     use crate::model::Flags;
 
     fn identity(email: &str) -> Identity {
-        Identity { id: "i1".into(), name: "Me".into(), email: email.into(), reply_to: None, bcc: None, signature: String::new(), is_default: true }
+        Identity {
+            id: "i1".into(),
+            name: "Me".into(),
+            email: email.into(),
+            reply_to: None,
+            bcc: None,
+            signature: String::new(),
+            is_default: true,
+        }
+    }
+
+    #[test]
+    fn no_header_injection() {
+        let draft = Draft {
+            to: vec![Address::new(Some("Eve\r\nBcc: x@evil.example".into()), "a@example.com")],
+            subject: "Hi\r\nBcc: victim@example.com".into(),
+            text: "body".into(),
+            ..Default::default()
+        };
+        let built = build(&draft, &Address::new(None, "me@example.com"), &[], false, None).unwrap();
+        let raw = String::from_utf8_lossy(&built.raw);
+        assert!(!raw.contains("\r\nBcc:"), "{raw}");
     }
 
     #[test]
@@ -540,7 +558,13 @@ mod tests {
             priority: Priority::High,
             ..Default::default()
         };
-        let files = vec![ResolvedAttachment { filename: "nota.txt".into(), content_type: "text/plain".into(), bytes: b"oi".to_vec(), inline: false, content_id: None }];
+        let files = vec![ResolvedAttachment {
+            filename: "nota.txt".into(),
+            content_type: "text/plain".into(),
+            bytes: b"oi".to_vec(),
+            inline: false,
+            content_id: None,
+        }];
         let from = Address::new(Some("Me".into()), "me@example.com");
         let built = build(&draft, &from, &files, false, None).unwrap();
         let text = String::from_utf8_lossy(&built.raw);

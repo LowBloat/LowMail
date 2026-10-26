@@ -54,7 +54,7 @@ macro_rules! with_conn {
 /// Raw messages kept in memory so switching between them is instant.
 const CACHE_BYTES: usize = 64 * 1024 * 1024;
 pub const MAX_UPLOAD: usize = 50 * 1024 * 1024;
-const MAX_UPLOADS_TOTAL: usize = 400 * 1024 * 1024;
+const MAX_UPLOADS_TOTAL: usize = 200 * 1024 * 1024;
 const UPLOAD_TTL: Duration = Duration::from_secs(24 * 3600);
 /// Results of a search in every folder.
 const SEARCH_ALL_LIMIT: usize = 300;
@@ -141,7 +141,13 @@ pub struct MailClient {
 
 impl MailClient {
     /// Signs in (the first connection checks the password) and returns the client.
-    pub async fn connect(account: AccountConfig, password: String, store: Arc<Store>, owner: String, pool_size: usize) -> Result<Arc<MailClient>> {
+    pub async fn connect(
+        account: AccountConfig,
+        password: String,
+        store: Arc<Store>,
+        owner: String,
+        pool_size: usize,
+    ) -> Result<Arc<MailClient>> {
         let pool = Pool::new(account, password, pool_size);
         drop(pool.get().await?);
         let (events, _) = broadcast::channel(64);
@@ -312,11 +318,11 @@ impl MailClient {
         doomed.sort_by_key(|p| std::cmp::Reverse(p.matches(delim.as_str()).count()));
         doomed.push(path.to_string());
         with_conn!(self.pool, false, |conn| {
-                for p in &doomed {
-                    conn.delete_folder(p).await?;
-                }
-                Ok(())
-            })?;
+            for p in &doomed {
+                conn.delete_folder(p).await?;
+            }
+            Ok(())
+        })?;
         *self.folders.lock() = None;
         self.cache.lock().forget_folder(path);
         Ok(())
@@ -330,9 +336,9 @@ impl MailClient {
 
     pub async fn empty_folder(&self, path: &str) -> Result<()> {
         with_conn!(self.pool, false, |conn| {
-                conn.select(path).await?;
-                conn.delete_all().await
-            })?;
+            conn.select(path).await?;
+            conn.delete_all().await
+        })?;
         self.cache.lock().forget_folder(path);
         self.emit(MailEvent::FolderChanged { folder: path.to_string() });
         Ok(())
@@ -340,9 +346,9 @@ impl MailClient {
 
     pub async fn mark_folder_read(&self, path: &str) -> Result<()> {
         with_conn!(self.pool, true, |conn| {
-                conn.select(path).await?;
-                conn.store_flags_all(&["\\Seen"]).await
-            })
+            conn.select(path).await?;
+            conn.store_flags_all(&["\\Seen"]).await
+        })
     }
 
     pub async fn counts(&self, paths: &[String]) -> Result<Vec<FolderCount>> {
@@ -355,20 +361,20 @@ impl MailClient {
     pub async fn list(&self, folder: &str, offset: u32, limit: u32, sort: &Sort, filter: &Filter) -> Result<MessagePage> {
         let limit = limit.clamp(1, 500);
         with_conn!(self.pool, true, |conn| {
-                let sel = conn.select(folder).await?;
-                let uids = if sel.exists == 0 { Vec::new() } else { conn.sorted_uids(sort, filter).await? };
-                let page: Vec<u32> = uids.iter().skip(offset as usize).take(limit as usize).copied().collect();
-                let items = conn.fetch_summaries(folder, &page).await?;
-                Ok(MessagePage { folder: folder.to_string(), uid_validity: sel.uid_validity, total: uids.len() as u32, offset, items, uids })
-            })
+            let sel = conn.select(folder).await?;
+            let uids = if sel.exists == 0 { Vec::new() } else { conn.sorted_uids(sort, filter).await? };
+            let page: Vec<u32> = uids.iter().skip(offset as usize).take(limit as usize).copied().collect();
+            let items = conn.fetch_summaries(folder, &page).await?;
+            Ok(MessagePage { folder: folder.to_string(), uid_validity: sel.uid_validity, total: uids.len() as u32, offset, items, uids })
+        })
     }
 
     /// Summaries for UIDs the UI already knows (rows scrolled into view).
     pub async fn summaries(&self, folder: &str, uids: &[u32]) -> Result<Vec<MessageSummary>> {
         with_conn!(self.pool, true, |conn| {
-                conn.select(folder).await?;
-                conn.fetch_summaries(folder, uids).await
-            })
+            conn.select(folder).await?;
+            conn.fetch_summaries(folder, uids).await
+        })
     }
 
     /// Searches every folder; newest first.
@@ -378,43 +384,43 @@ impl MailClient {
         for f in folders {
             let path = f.path.clone();
             let found = with_conn!(self.pool, true, |conn| {
-                    let sel = conn.select(&path).await?;
-                    if sel.exists == 0 {
-                        return Ok(Vec::new());
-                    }
-                    let mut uids = conn.search_uids(filter).await?;
-                    uids.sort_unstable_by(|a, b| b.cmp(a));
-                    uids.truncate(SEARCH_ALL_LIMIT);
-                    conn.fetch_summaries(&path, &uids).await
-                });
+                let sel = conn.select(&path).await?;
+                if sel.exists == 0 {
+                    return Ok(Vec::new());
+                }
+                let mut uids = conn.search_uids(filter).await?;
+                uids.sort_unstable_by(|a, b| b.cmp(a));
+                uids.truncate(SEARCH_ALL_LIMIT);
+                conn.fetch_summaries(&path, &uids).await
+            });
             match found {
                 Ok(items) => all.extend(items),
                 Err(e) if e.is_connection_error() => return Err(e),
                 Err(_) => {}
             }
         }
-        all.sort_by(|a, b| b.date.cmp(&a.date));
+        all.sort_by_key(|m| std::cmp::Reverse(m.date));
         all.truncate(SEARCH_ALL_LIMIT);
         Ok(all)
     }
 
     async fn raw_and_flags(&self, folder: &str, uid: u32) -> Result<(Arc<Vec<u8>>, Flags)> {
         with_conn!(self.pool, true, |conn| {
-                let sel = conn.select(folder).await?;
-                let key = (folder.to_string(), sel.uid_validity, uid);
-                let cached = self.cache.lock().get(&key);
-                if let Some(raw) = cached {
-                    let flags = conn.fetch_summaries(folder, &[uid]).await?.into_iter().next().map(|s| s.flags);
-                    return match flags {
-                        Some(flags) => Ok((raw, flags)),
-                        None => Err(Error::not_found("The message no longer exists. It may have been moved or deleted.")),
-                    };
-                }
-                let (raw, flags) = conn.fetch_raw(uid).await?;
-                let raw = Arc::new(raw);
-                self.cache.lock().put(key, raw.clone());
-                Ok((raw, flags))
-            })
+            let sel = conn.select(folder).await?;
+            let key = (folder.to_string(), sel.uid_validity, uid);
+            let cached = self.cache.lock().get(&key);
+            if let Some(raw) = cached {
+                let flags = conn.fetch_summaries(folder, &[uid]).await?.into_iter().next().map(|s| s.flags);
+                return match flags {
+                    Some(flags) => Ok((raw, flags)),
+                    None => Err(Error::not_found("The message no longer exists. It may have been moved or deleted.")),
+                };
+            }
+            let (raw, flags) = conn.fetch_raw(uid).await?;
+            let raw = Arc::new(raw);
+            self.cache.lock().put(key, raw.clone());
+            Ok((raw, flags))
+        })
     }
 
     pub async fn raw(&self, folder: &str, uid: u32) -> Result<Arc<Vec<u8>>> {
@@ -447,7 +453,9 @@ impl MailClient {
     pub async fn set_flags(&self, folder: &str, uids: &[u32], change: &FlagChange) -> Result<()> {
         let mut add: Vec<&str> = Vec::new();
         let mut remove: Vec<&str> = Vec::new();
-        for (value, flag) in [(change.seen, "\\Seen"), (change.flagged, "\\Flagged"), (change.answered, "\\Answered"), (change.forwarded, "$Forwarded")] {
+        for (value, flag) in
+            [(change.seen, "\\Seen"), (change.flagged, "\\Flagged"), (change.answered, "\\Answered"), (change.forwarded, "$Forwarded")]
+        {
             match value {
                 Some(true) => add.push(flag),
                 Some(false) => remove.push(flag),
@@ -458,9 +466,9 @@ impl MailClient {
             return Ok(());
         }
         with_conn!(self.pool, true, |conn| {
-                conn.select(folder).await?;
-                conn.store_flags(uids, &add, &remove).await
-            })
+            conn.select(folder).await?;
+            conn.store_flags(uids, &add, &remove).await
+        })
     }
 
     pub async fn move_messages(&self, folder: &str, uids: &[u32], dest: &str) -> Result<()> {
@@ -468,18 +476,18 @@ impl MailClient {
             return Ok(());
         }
         with_conn!(self.pool, false, |conn| {
-                conn.select(folder).await?;
-                conn.move_uids(uids, dest).await
-            })?;
+            conn.select(folder).await?;
+            conn.move_uids(uids, dest).await
+        })?;
         self.emit(MailEvent::FolderChanged { folder: dest.to_string() });
         Ok(())
     }
 
     pub async fn copy_messages(&self, folder: &str, uids: &[u32], dest: &str) -> Result<()> {
         with_conn!(self.pool, false, |conn| {
-                conn.select(folder).await?;
-                conn.copy_uids(uids, dest).await
-            })?;
+            conn.select(folder).await?;
+            conn.copy_uids(uids, dest).await
+        })?;
         self.emit(MailEvent::FolderChanged { folder: dest.to_string() });
         Ok(())
     }
@@ -492,9 +500,9 @@ impl MailClient {
             Some(trash) if trash != folder => self.move_messages(folder, uids, &trash).await,
             _ => {
                 with_conn!(self.pool, false, |conn| {
-                        conn.select(folder).await?;
-                        conn.delete_uids(uids).await
-                    })
+                    conn.select(folder).await?;
+                    conn.delete_uids(uids).await
+                })
             }
         }
     }
@@ -510,11 +518,11 @@ impl MailClient {
         let dest = if junk { self.ensure_role(FolderRole::Junk).await? } else { "INBOX".to_string() };
         let (add, remove) = if junk { ("$Junk", "$NotJunk") } else { ("$NotJunk", "$Junk") };
         with_conn!(self.pool, true, |conn| {
-                conn.select(folder).await?;
-                // Servers without keywords refuse; the move still matters.
-                let _ = conn.store_flags(uids, &[add], &[remove]).await;
-                Ok(())
-            })?;
+            conn.select(folder).await?;
+            // Servers without keywords refuse; the move still matters.
+            let _ = conn.store_flags(uids, &[add], &[remove]).await;
+            Ok(())
+        })?;
         self.move_messages(folder, uids, &dest).await?;
         Ok(dest)
     }
@@ -560,9 +568,9 @@ impl MailClient {
         for a in list {
             let bytes = match &a.source {
                 AttachmentSource::Upload { id } => {
-                    let (_, bytes) = self.upload_bytes(id).ok_or_else(|| {
-                        Error::not_found(format!("The attached file \"{}\" expired. Attach it again.", a.filename))
-                    })?;
+                    let (_, bytes) = self
+                        .upload_bytes(id)
+                        .ok_or_else(|| Error::not_found(format!("The attached file \"{}\" expired. Attach it again.", a.filename)))?;
                     bytes.as_ref().clone()
                 }
                 AttachmentSource::Part { folder, uid, part } => self.attachment(folder, *uid, part).await?.2,
@@ -673,15 +681,15 @@ impl MailClient {
         let (raw, message_id) = (built.raw, built.message_id.clone());
         let d = drafts.clone();
         let uid = with_conn!(self.pool, false, |conn| {
-                let appended = conn.append(&d, &["\\Draft", "\\Seen"], &raw).await?;
-                match appended {
-                    Some((_, uid)) => Ok(Some(uid)),
-                    None => {
-                        conn.select(&d).await?;
-                        conn.find_by_message_id(&message_id).await
-                    }
+            let appended = conn.append(&d, &["\\Draft", "\\Seen"], &raw).await?;
+            match appended {
+                Some((_, uid)) => Ok(Some(uid)),
+                None => {
+                    conn.select(&d).await?;
+                    conn.find_by_message_id(&message_id).await
                 }
-            })?;
+            }
+        })?;
         if let Some(old) = draft.draft_ref.take()
             && !(old.folder == drafts && Some(old.uid) == uid)
         {
@@ -737,7 +745,10 @@ impl MailClient {
                             saved = true;
                             self.emit(MailEvent::FolderChanged { folder: sent });
                         }
-                        Err(e) => warnings.push(format!("The message was sent, but the copy in Sent could not be saved: {}", e.detail.unwrap_or(e.message))),
+                        Err(e) => warnings.push(format!(
+                            "The message was sent, but the copy in Sent could not be saved: {}",
+                            e.detail.unwrap_or(e.message)
+                        )),
                     }
                 }
                 Err(e) => warnings.push(format!("The message was sent, but there is no Sent folder: {}", e.message)),
@@ -780,9 +791,9 @@ impl MailClient {
         let raw = build_receipt(&message, &from, &to)?;
         smtp::send(self.account(), self.password(), &from.email, std::slice::from_ref(&to.email), &raw).await?;
         with_conn!(self.pool, true, |conn| {
-                conn.select(folder).await?;
-                conn.store_flags(&[uid], &["$MDNSent"], &[]).await
-            })
+            conn.select(folder).await?;
+            conn.store_flags(&[uid], &["$MDNSent"], &[]).await
+        })
     }
 
     // ---- filters -------------------------------------------------------
@@ -802,10 +813,7 @@ fn build_receipt(message: &Message, from: &Address, to: &Address) -> Result<Vec<
     let domain = from.email.rsplit('@').next().unwrap_or("lowmail.local");
     let boundary = format!("lm-{}", uuid::Uuid::new_v4().simple());
     let date = chrono::Utc::now().to_rfc2822();
-    let text = format!(
-        "This is a receipt for the message you sent to {}.\r\nIt was displayed on {}.\r\n",
-        from.email, date
-    );
+    let text = format!("This is a receipt for the message you sent to {}.\r\nIt was displayed on {}.\r\n", from.email, date);
     let report = format!(
         "Reporting-UA: {domain}; LowMail\r\nFinal-Recipient: rfc822;{}\r\nOriginal-Message-ID: <{original_id}>\r\nDisposition: manual-action/MDN-sent-manually; displayed\r\n",
         from.email
@@ -860,6 +868,17 @@ pub fn guess_type(filename: &str) -> &'static str {
     }
 }
 
+/// Checks that the IMAP and SMTP servers accept the account's sign-in.
+pub async fn test_account(account: &AccountConfig, password: &str) -> Result<()> {
+    let conn = crate::imap::Conn::open(account, password).await?;
+    conn.logout().await;
+    smtp::test(account, password).await.map_err(|e| {
+        let mut e = e;
+        e.message = format!("Incoming mail works, but the outgoing server failed: {}", e.message);
+        e
+    })
+}
+
 #[cfg(test)]
 mod send_check {
     use super::*;
@@ -888,15 +907,4 @@ mod send_check {
             let _ = crate::rpc::dispatch(&c, "x", serde_json::Value::Null).await;
         });
     }
-}
-
-/// Checks that the IMAP and SMTP servers accept the account's sign-in.
-pub async fn test_account(account: &AccountConfig, password: &str) -> Result<()> {
-    let conn = crate::imap::Conn::open(account, password).await?;
-    conn.logout().await;
-    smtp::test(account, password).await.map_err(|e| {
-        let mut e = e;
-        e.message = format!("Incoming mail works, but the outgoing server failed: {}", e.message);
-        e
-    })
 }

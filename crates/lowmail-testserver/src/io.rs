@@ -16,11 +16,7 @@ pub(crate) struct LineReader<R> {
 
 impl<R: AsyncRead + Unpin> LineReader<R> {
     pub(crate) fn new(inner: R) -> Self {
-        Self {
-            inner,
-            buf: Vec::with_capacity(8192),
-            scanned: 0,
-        }
+        Self { inner, buf: Vec::with_capacity(8192), scanned: 0 }
     }
 
     async fn fill(&mut self, hint: usize) -> io::Result<bool> {
@@ -43,11 +39,7 @@ impl<R: AsyncRead + Unpin> LineReader<R> {
                 return Err(io::Error::new(io::ErrorKind::InvalidData, "line too long"));
             }
             if !self.fill(0).await? {
-                return if self.buf.is_empty() {
-                    Ok(None)
-                } else {
-                    Err(io::ErrorKind::UnexpectedEof.into())
-                };
+                return if self.buf.is_empty() { Ok(None) } else { Err(io::ErrorKind::UnexpectedEof.into()) };
             }
         }
     }

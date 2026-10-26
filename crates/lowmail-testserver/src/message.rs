@@ -44,11 +44,7 @@ pub(crate) struct Meta {
 
 impl MessageData {
     pub(crate) fn new(raw: Vec<u8>) -> Self {
-        Self {
-            raw,
-            meta: OnceLock::new(),
-            search_text: OnceLock::new(),
-        }
+        Self { raw, meta: OnceLock::new(), search_text: OnceLock::new() }
     }
 
     pub(crate) fn meta(&self) -> &Meta {
@@ -132,10 +128,7 @@ impl Meta {
         meta.sort_to = sort_address(headers.to());
         meta.sort_cc = sort_address(headers.cc());
         meta.sent = headers.date().filter(|d| d.is_valid()).and_then(|d| {
-            Some(SentDate {
-                timestamp: d.to_timestamp(),
-                date: NaiveDate::from_ymd_opt(d.year.into(), d.month.into(), d.day.into())?,
-            })
+            Some(SentDate { timestamp: d.to_timestamp(), date: NaiveDate::from_ymd_opt(d.year.into(), d.month.into(), d.day.into())? })
         });
         meta
     }
@@ -163,10 +156,7 @@ fn format_addresses(list: Option<AddressList<'_>>) -> String {
 
 /// RFC 5256: the addr-mailbox (local part) of the first address.
 fn sort_address(list: Option<AddressList<'_>>) -> String {
-    list.and_then(|l| l.first())
-        .and_then(|m| m.address())
-        .map(|a| a.split('@').next().unwrap_or(a).to_lowercase())
-        .unwrap_or_default()
+    list.and_then(|l| l.first()).and_then(|m| m.address()).map(|a| a.split('@').next().unwrap_or(a).to_lowercase()).unwrap_or_default()
 }
 
 /// Offset just past the blank line that ends the header block (or the
@@ -216,10 +206,7 @@ pub(crate) fn header_fields(block: &[u8]) -> Vec<RawField<'_>> {
     let mut spans: Vec<(usize, usize, usize)> = Vec::new();
     let mut i = 0;
     while i < block.len() {
-        let end = block[i..]
-            .iter()
-            .position(|&b| b == b'\n')
-            .map_or(block.len(), |p| i + p + 1);
+        let end = block[i..].iter().position(|&b| b == b'\n').map_or(block.len(), |p| i + p + 1);
         let line = crate::io::trim_eol(&block[i..end]);
         if line.is_empty() {
             break;
@@ -245,11 +232,7 @@ pub(crate) fn header_fields(block: &[u8]) -> Vec<RawField<'_>> {
 
 /// Removes folding line breaks and surrounding whitespace.
 pub(crate) fn unfold(value: &[u8]) -> Vec<u8> {
-    let joined: Vec<u8> = value
-        .iter()
-        .copied()
-        .filter(|&b| b != b'\r' && b != b'\n')
-        .collect();
+    let joined: Vec<u8> = value.iter().copied().filter(|&b| b != b'\r' && b != b'\n').collect();
     joined.trim_ascii().to_vec()
 }
 
@@ -287,9 +270,6 @@ mod tests {
         assert_eq!(meta.subject, "Promoção");
         assert!(meta.from.contains("João"));
         assert_eq!(meta.sort_from, "joao");
-        assert_eq!(
-            meta.sent.unwrap().date,
-            NaiveDate::from_ymd_opt(2025, 10, 6).unwrap()
-        );
+        assert_eq!(meta.sent.unwrap().date, NaiveDate::from_ymd_opt(2025, 10, 6).unwrap());
     }
 }

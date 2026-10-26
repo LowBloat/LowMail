@@ -26,7 +26,8 @@ pub struct AppState {
 }
 
 fn keyring(id: &str) -> Result<keyring::Entry> {
-    keyring::Entry::new(KEYRING_SERVICE, id).map_err(|e| Error::internal("The system password store is not available.").with_detail(e.to_string()))
+    keyring::Entry::new(KEYRING_SERVICE, id)
+        .map_err(|e| Error::internal("The system password store is not available.").with_detail(e.to_string()))
 }
 
 fn stored_password(id: &str) -> Option<String> {
@@ -34,7 +35,9 @@ fn stored_password(id: &str) -> Option<String> {
 }
 
 fn remember_password(id: &str, password: &str) -> Result<()> {
-    keyring(id)?.set_password(password).map_err(|e| Error::internal("The password could not be saved in the system password store.").with_detail(e.to_string()))
+    keyring(id)?
+        .set_password(password)
+        .map_err(|e| Error::internal("The password could not be saved in the system password store.").with_detail(e.to_string()))
 }
 
 fn forget_password(id: &str) {
@@ -83,7 +86,12 @@ impl AppState {
 }
 
 #[tauri::command]
-async fn rpc(state: State<'_, AppState>, account_id: Option<String>, method: String, params: serde_json::Value) -> Result<serde_json::Value> {
+async fn rpc(
+    state: State<'_, AppState>,
+    account_id: Option<String>,
+    method: String,
+    params: serde_json::Value,
+) -> Result<serde_json::Value> {
     let client = state.client(account_id.as_deref(), None).await?;
     lowmail_core::rpc::dispatch(&client, &method, params).await
 }
@@ -128,7 +136,8 @@ async fn account_delete(state: State<'_, AppState>, id: String) -> Result<()> {
 
 #[tauri::command]
 async fn account_test(account: AccountConfig, password: Option<String>) -> Result<()> {
-    let password = password.filter(|p| !p.is_empty()).or_else(|| stored_password(&account.id)).ok_or_else(|| Error::invalid("Enter the password."))?;
+    let password =
+        password.filter(|p| !p.is_empty()).or_else(|| stored_password(&account.id)).ok_or_else(|| Error::invalid("Enter the password."))?;
     lowmail_core::service::test_account(&account, &password).await
 }
 
@@ -199,7 +208,9 @@ async fn upload(state: State<'_, AppState>, request: tauri::ipc::Request<'_>) ->
 }
 
 pub fn run() {
-    tracing_subscriber::fmt().with_env_filter(tracing_subscriber::EnvFilter::try_from_env("LOWMAIL_LOG").unwrap_or_else(|_| "warn".into())).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::try_from_env("LOWMAIL_LOG").unwrap_or_else(|_| "warn".into()))
+        .init();
     let mut builder = tauri::Builder::default();
     #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
     {
@@ -220,7 +231,11 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             let store = Store::open(&dir.join("lowmail.db")).map_err(|e| anyhow_like(e.to_string()))?;
-            app.manage(AppState { store: Arc::new(store), clients: tokio::sync::Mutex::new(HashMap::new()), watching: Mutex::new(HashSet::new()) });
+            app.manage(AppState {
+                store: Arc::new(store),
+                clients: tokio::sync::Mutex::new(HashMap::new()),
+                watching: Mutex::new(HashSet::new()),
+            });
             window::start_fallback(app.handle());
             Ok(())
         })

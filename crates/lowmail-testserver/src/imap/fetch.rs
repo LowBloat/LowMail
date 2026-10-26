@@ -31,33 +31,16 @@ pub(crate) struct Section {
 impl Section {
     /// The section spec as echoed in the response, without brackets.
     fn echo(&self) -> String {
-        let mut out = self
-            .path
-            .iter()
-            .map(u32::to_string)
-            .collect::<Vec<_>>()
-            .join(".");
+        let mut out = self.path.iter().map(u32::to_string).collect::<Vec<_>>().join(".");
         let name = match &self.text {
             SectionText::Full => return out,
             SectionText::Header => "HEADER".to_owned(),
             SectionText::Text => "TEXT".to_owned(),
             SectionText::Mime => "MIME".to_owned(),
             SectionText::HeaderFields { not, fields } => {
-                let list: Vec<String> = fields
-                    .iter()
-                    .map(|f| {
-                        if !f.is_empty() && f.bytes().all(is_atom_char) {
-                            f.clone()
-                        } else {
-                            wire::string(f)
-                        }
-                    })
-                    .collect();
-                format!(
-                    "HEADER.FIELDS{} ({})",
-                    if *not { ".NOT" } else { "" },
-                    list.join(" ")
-                )
+                let list: Vec<String> =
+                    fields.iter().map(|f| if !f.is_empty() && f.bytes().all(is_atom_char) { f.clone() } else { wire::string(f) }).collect();
+                format!("HEADER.FIELDS{} ({})", if *not { ".NOT" } else { "" }, list.join(" "))
             }
         };
         if !out.is_empty() {
@@ -81,20 +64,13 @@ pub(crate) enum FetchAtt {
     Rfc822,
     Rfc822Header,
     Rfc822Text,
-    Section {
-        peek: bool,
-        section: Section,
-        partial: Option<(u32, u32)>,
-    },
+    Section { peek: bool, section: Section, partial: Option<(u32, u32)> },
 }
 
 impl FetchAtt {
     /// Whether fetching this item sets `\Seen`.
     pub(crate) fn sets_seen(&self) -> bool {
-        matches!(
-            self,
-            FetchAtt::Rfc822 | FetchAtt::Rfc822Text | FetchAtt::Section { peek: false, .. }
-        )
+        matches!(self, FetchAtt::Rfc822 | FetchAtt::Rfc822Text | FetchAtt::Section { peek: false, .. })
     }
 }
 
@@ -152,11 +128,7 @@ fn parse_att(p: &mut Parser<'_>) -> PResult<FetchAtt> {
             } else {
                 None
             };
-            FetchAtt::Section {
-                peek: name == "BODY.PEEK",
-                section,
-                partial,
-            }
+            FetchAtt::Section { peek: name == "BODY.PEEK", section, partial }
         }
         "BODY" => FetchAtt::Body,
         "" => return Err(ParseError("expected fetch attribute".into())),
@@ -181,17 +153,11 @@ fn parse_section(p: &mut Parser<'_>) -> PResult<Section> {
             break;
         }
         if p.eat(b']') {
-            return Ok(Section {
-                path,
-                text: SectionText::Full,
-            });
+            return Ok(Section { path, text: SectionText::Full });
         }
         p.expect(b'.')?;
     } else if p.eat(b']') {
-        return Ok(Section {
-            path,
-            text: SectionText::Full,
-        });
+        return Ok(Section { path, text: SectionText::Full });
     }
     let kw = p.take_while(|c| c.is_ascii_alphanumeric() || c == b'.');
     let text = match String::from_utf8_lossy(kw).to_ascii_uppercase().as_str() {
@@ -232,15 +198,9 @@ pub(crate) struct ItemCtx<'a> {
 pub(crate) fn render(att: &FetchAtt, ctx: &ItemCtx<'_>, out: &mut Vec<u8>) {
     match att {
         FetchAtt::Uid => out.extend_from_slice(format!("UID {}", ctx.uid).as_bytes()),
-        FetchAtt::Flags => out.extend_from_slice(
-            format!("FLAGS {}", wire::flag_list(ctx.flags, ctx.recent)).as_bytes(),
-        ),
-        FetchAtt::InternalDate => out.extend_from_slice(
-            format!("INTERNALDATE {}", wire::date_time(ctx.internal_date)).as_bytes(),
-        ),
-        FetchAtt::Size => {
-            out.extend_from_slice(format!("RFC822.SIZE {}", ctx.data.raw.len()).as_bytes())
-        }
+        FetchAtt::Flags => out.extend_from_slice(format!("FLAGS {}", wire::flag_list(ctx.flags, ctx.recent)).as_bytes()),
+        FetchAtt::InternalDate => out.extend_from_slice(format!("INTERNALDATE {}", wire::date_time(ctx.internal_date)).as_bytes()),
+        FetchAtt::Size => out.extend_from_slice(format!("RFC822.SIZE {}", ctx.data.raw.len()).as_bytes()),
         FetchAtt::Envelope => {
             out.extend_from_slice(b"ENVELOPE ");
             out.extend_from_slice(&ctx.data.meta().envelope);
@@ -265,9 +225,7 @@ pub(crate) fn render(att: &FetchAtt, ctx: &ItemCtx<'_>, out: &mut Vec<u8>) {
             out.extend_from_slice(b"RFC822.TEXT ");
             push_literal(out, ctx.data.text());
         }
-        FetchAtt::Section {
-            section, partial, ..
-        } => {
+        FetchAtt::Section { section, partial, .. } => {
             let data = extract(ctx.data, section);
             out.extend_from_slice(format!("BODY[{}]", section.echo()).as_bytes());
             match partial {
@@ -314,9 +272,7 @@ fn extract(data: &MessageData, section: &Section) -> Vec<u8> {
             match text {
                 SectionText::Header => root.raw_headers().to_vec(),
                 SectionText::Text => root.raw_body().to_vec(),
-                SectionText::HeaderFields { not, fields } => {
-                    filter_header(root.raw_headers(), fields, *not)
-                }
+                SectionText::HeaderFields { not, fields } => filter_header(root.raw_headers(), fields, *not),
                 _ => Vec::new(),
             }
         }
@@ -371,11 +327,7 @@ struct EnvAddress {
 pub(crate) fn envelope(header: &[u8], out: &mut Vec<u8>) {
     let fields = header_fields(header);
     let get = |name: &str| fields.iter().find(|f| f.is(name)).map(|f| unfold(f.value));
-    let addresses = |name: &str| {
-        get(name)
-            .map(|v| parse_addresses(&v))
-            .filter(|list| !list.is_empty())
-    };
+    let addresses = |name: &str| get(name).map(|v| parse_addresses(&v)).filter(|list| !list.is_empty());
     let from = addresses("From");
     let sender = addresses("Sender").or_else(|| addresses("From"));
     let reply_to = addresses("Reply-To").or_else(|| addresses("From"));
@@ -384,14 +336,7 @@ pub(crate) fn envelope(header: &[u8], out: &mut Vec<u8>) {
     push_nstring(out, get("Date").as_deref());
     out.push(b' ');
     push_nstring(out, get("Subject").as_deref());
-    for list in [
-        from,
-        sender,
-        reply_to,
-        addresses("To"),
-        addresses("Cc"),
-        addresses("Bcc"),
-    ] {
+    for list in [from, sender, reply_to, addresses("To"), addresses("Cc"), addresses("Bcc")] {
         out.push(b' ');
         push_address_list(out, list.as_deref());
     }
@@ -499,10 +444,7 @@ fn parse_addresses(value: &[u8]) -> Vec<EnvAddress> {
             }
             None => (
                 first_comment(item).unwrap_or_default(),
-                clean_phrase(item)
-                    .split(|b| b.is_ascii_whitespace())
-                    .collect::<Vec<_>>()
-                    .concat(),
+                clean_phrase(item).split(|b| b.is_ascii_whitespace()).collect::<Vec<_>>().concat(),
             ),
         };
         if spec.is_empty() {
@@ -512,11 +454,7 @@ fn parse_addresses(value: &[u8]) -> Vec<EnvAddress> {
             Some(at) => (spec[..at].to_vec(), spec[at + 1..].to_vec()),
             None => (spec.clone(), b"MISSING_DOMAIN".to_vec()),
         };
-        list.push(EnvAddress {
-            name: (!name.is_empty()).then_some(name),
-            mailbox,
-            host,
-        });
+        list.push(EnvAddress { name: (!name.is_empty()).then_some(name), mailbox, host });
     }
     list
 }
@@ -545,35 +483,20 @@ fn find_angle(item: &[u8]) -> Option<usize> {
 
 /// Raw (unfolded) value of a MIME header of `part`.
 fn raw_header(part: &MessagePart<'_>, name: &str) -> Option<Vec<u8>> {
-    part.headers()
-        .iter()
-        .find(|h| h.raw_name().eq_ignore_ascii_case(name))
-        .map(|h| unfold(h.raw_value()))
+    part.headers().iter().find(|h| h.raw_name().eq_ignore_ascii_case(name)).map(|h| unfold(h.raw_value()))
 }
 
 fn line_count(body: &[u8]) -> usize {
     let lines = body.iter().filter(|&&b| b == b'\n').count();
-    if body.is_empty() || body.ends_with(b"\n") {
-        lines
-    } else {
-        lines + 1
-    }
+    if body.is_empty() || body.ends_with(b"\n") { lines } else { lines + 1 }
 }
 
-fn push_params<'a>(
-    out: &mut Vec<u8>,
-    params: impl Iterator<Item = (&'a str, &'a str)>,
-    upper_names: bool,
-) {
+fn push_params<'a>(out: &mut Vec<u8>, params: impl Iterator<Item = (&'a str, &'a str)>, upper_names: bool) {
     let mut any = false;
     for (name, value) in params {
         out.push(if any { b' ' } else { b'(' });
         any = true;
-        let name = if upper_names {
-            name.to_ascii_uppercase()
-        } else {
-            name.to_owned()
-        };
+        let name = if upper_names { name.to_ascii_uppercase() } else { name.to_owned() };
         push_string(out, name.as_bytes());
         out.push(b' ');
         push_string(out, value.as_bytes());
@@ -600,10 +523,7 @@ fn push_disposition(out: &mut Vec<u8>, part: &MessagePart<'_>) {
 
 /// A placeholder `text/plain` structure for unparseable content.
 pub(crate) fn fallback_body_structure(size: usize, out: &mut Vec<u8>) {
-    out.extend_from_slice(
-        format!("(\"TEXT\" \"PLAIN\" (\"CHARSET\" \"us-ascii\") NIL NIL \"7BIT\" {size} 0)")
-            .as_bytes(),
-    );
+    out.extend_from_slice(format!("(\"TEXT\" \"PLAIN\" (\"CHARSET\" \"us-ascii\") NIL NIL \"7BIT\" {size} 0)").as_bytes());
 }
 
 /// Writes BODYSTRUCTURE (`extended`) or BODY for a MIME part.
@@ -639,17 +559,8 @@ pub(crate) fn body_structure(part: MessagePart<'_>, extended: bool, out: &mut Ve
     let (ty, subtype) = match content_type {
         Some(ct) => {
             let ty = ct.ctype().to_ascii_uppercase();
-            let subtype = ct
-                .subtype()
-                .map(str::to_ascii_uppercase)
-                .unwrap_or_else(|| {
-                    if ty == "TEXT" {
-                        "PLAIN"
-                    } else {
-                        "OCTET-STREAM"
-                    }
-                    .to_owned()
-                });
+            let subtype =
+                ct.subtype().map(str::to_ascii_uppercase).unwrap_or_else(|| if ty == "TEXT" { "PLAIN" } else { "OCTET-STREAM" }.to_owned());
             (ty, subtype)
         }
         None => ("TEXT".to_owned(), "PLAIN".to_owned()),
@@ -663,10 +574,7 @@ pub(crate) fn body_structure(part: MessagePart<'_>, extended: bool, out: &mut Ve
     out.push(b' ');
     let has_charset = content_type.is_some_and(|ct| ct.has_attribute("charset"));
     let default_charset = (ty == "TEXT" && !has_charset).then_some(("charset", "us-ascii"));
-    let params = content_type
-        .into_iter()
-        .flat_map(|ct| ct.attributes())
-        .chain(default_charset);
+    let params = content_type.into_iter().flat_map(|ct| ct.attributes()).chain(default_charset);
     push_params(out, params, true);
     out.push(b' ');
     push_nstring(out, raw_header(&part, "Content-ID").as_deref());
@@ -727,23 +635,14 @@ mod tests {
     fn sections() {
         let mut p = Parser::new(b"BODY.PEEK[HEADER.FIELDS (From Subject)]<0.100>");
         let atts = parse_atts(&mut p).unwrap();
-        let FetchAtt::Section {
-            peek,
-            section,
-            partial,
-        } = &atts[0]
-        else {
-            panic!()
-        };
+        let FetchAtt::Section { peek, section, partial } = &atts[0] else { panic!() };
         assert!(*peek);
         assert_eq!(partial, &Some((0, 100)));
         assert_eq!(section.echo(), "HEADER.FIELDS (From Subject)");
         let mut p = Parser::new(b"(UID BODY[1.2.MIME] BODY[2] BODY[])");
         let atts = parse_atts(&mut p).unwrap();
         assert_eq!(atts.len(), 4);
-        let FetchAtt::Section { section, .. } = &atts[1] else {
-            panic!()
-        };
+        let FetchAtt::Section { section, .. } = &atts[1] else { panic!() };
         assert_eq!(section.path, vec![1, 2]);
         assert_eq!(section.echo(), "1.2.MIME");
     }
@@ -757,18 +656,9 @@ mod tests {
             bs,
             "((\"TEXT\" \"PLAIN\" (\"CHARSET\" \"utf-8\") NIL NIL \"7BIT\" 5 1 NIL NIL NIL NIL)(\"APPLICATION\" \"PDF\" (\"NAME\" \"x.pdf\") NIL NIL \"BASE64\" 4 NIL (\"attachment\" (\"filename\" \"x.pdf\")) NIL NIL) \"MIXED\" (\"BOUNDARY\" \"b\") NIL NIL NIL)"
         );
-        let section = Section {
-            path: vec![2],
-            text: SectionText::Full,
-        };
+        let section = Section { path: vec![2], text: SectionText::Full };
         assert_eq!(extract(&data, &section), b"AAAA");
-        let section = Section {
-            path: vec![1],
-            text: SectionText::Mime,
-        };
-        assert_eq!(
-            extract(&data, &section),
-            b"Content-Type: text/plain; charset=utf-8\r\n\r\n"
-        );
+        let section = Section { path: vec![1], text: SectionText::Mime };
+        assert_eq!(extract(&data, &section), b"Content-Type: text/plain; charset=utf-8\r\n\r\n");
     }
 }

@@ -38,10 +38,10 @@ pub fn start_fallback<R: Runtime>(app: &AppHandle<R>) {
 /// uncovers white, and appears the first time.
 #[tauri::command]
 pub fn window_painted(background: String, app: AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        if let Ok(color) = background.parse::<tauri::window::Color>() {
-            let _ = window.set_background_color(Some(color));
-        }
+    if let Some(window) = app.get_webview_window("main")
+        && let Ok(color) = background.parse::<tauri::window::Color>()
+    {
+        let _ = window.set_background_color(Some(color));
     }
     show_first_time(&app);
 }

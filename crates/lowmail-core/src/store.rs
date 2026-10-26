@@ -72,9 +72,8 @@ impl Store {
 
     pub fn get_value(&self, owner: &str, key: &str) -> Result<Option<serde_json::Value>> {
         let db = self.db.lock();
-        let text: Option<String> = db
-            .query_row("SELECT value FROM kv WHERE owner = ?1 AND key = ?2", params![owner, key], |r| r.get(0))
-            .optional()?;
+        let text: Option<String> =
+            db.query_row("SELECT value FROM kv WHERE owner = ?1 AND key = ?2", params![owner, key], |r| r.get(0)).optional()?;
         Ok(text.and_then(|t| serde_json::from_str(&t).ok()))
     }
 
@@ -168,9 +167,7 @@ impl Store {
         }
         let was_default = list.iter().any(|i| i.id == id && i.is_default);
         self.db.lock().execute("DELETE FROM identities WHERE owner = ?1 AND id = ?2", params![owner, id])?;
-        if was_default
-            && let Some(mut first) = self.identities(owner)?.into_iter().next()
-        {
+        if was_default && let Some(mut first) = self.identities(owner)?.into_iter().next() {
             first.is_default = true;
             self.save_identity(owner, first)?;
         }
@@ -236,11 +233,10 @@ impl Store {
 
     pub fn contact(&self, owner: &str, id: &str) -> Result<Contact> {
         let db = self.db.lock();
-        let (data, collected, at): (String, bool, i64) = db.query_row(
-            "SELECT data, collected, updated_at FROM contacts WHERE owner = ?1 AND id = ?2",
-            params![owner, id],
-            |r| Ok((r.get(0)?, r.get::<_, i64>(1)? != 0, r.get(2)?)),
-        )?;
+        let (data, collected, at): (String, bool, i64) =
+            db.query_row("SELECT data, collected, updated_at FROM contacts WHERE owner = ?1 AND id = ?2", params![owner, id], |r| {
+                Ok((r.get(0)?, r.get::<_, i64>(1)? != 0, r.get(2)?))
+            })?;
         Self::row_to_contact(data, collected, at, id.to_string()).ok_or_else(|| Error::not_found("Contact not found."))
     }
 
@@ -272,7 +268,15 @@ impl Store {
              VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7)
              ON CONFLICT (owner, id) DO UPDATE SET name = excluded.name, emails = excluded.emails,
                collected = excluded.collected, updated_at = excluded.updated_at, data = excluded.data",
-            params![owner, contact.id, contact.name, emails, contact.collected as i64, contact.updated_at, serde_json::to_string(&contact)?],
+            params![
+                owner,
+                contact.id,
+                contact.name,
+                emails,
+                contact.collected as i64,
+                contact.updated_at,
+                serde_json::to_string(&contact)?
+            ],
         )?;
         Ok(contact)
     }
@@ -325,11 +329,7 @@ impl Store {
     }
 
     pub fn contact_groups(&self, owner: &str) -> Result<Vec<String>> {
-        let mut groups: Vec<String> = self
-            .contacts(owner, "", false, 100_000)?
-            .into_iter()
-            .flat_map(|c| c.groups)
-            .collect();
+        let mut groups: Vec<String> = self.contacts(owner, "", false, 100_000)?.into_iter().flat_map(|c| c.groups).collect();
         groups.sort_by_key(|g| g.to_lowercase());
         groups.dedup();
         Ok(groups)
@@ -385,7 +385,15 @@ mod tests {
         s.collect("me", &[Address::new(Some("Ana".into()), "ana@example.com"), Address::new(None, "bob@example.com")]).unwrap();
         s.collect("me", &[Address::new(None, "ana@example.com")]).unwrap();
         let saved = s
-            .save_contact("me", Contact { name: "Ana Souza".into(), emails: vec!["ana@example.com".into()], groups: vec!["Trabalho".into()], ..Default::default() })
+            .save_contact(
+                "me",
+                Contact {
+                    name: "Ana Souza".into(),
+                    emails: vec!["ana@example.com".into()],
+                    groups: vec!["Trabalho".into()],
+                    ..Default::default()
+                },
+            )
             .unwrap();
         assert!(!saved.id.is_empty());
         let all = s.contacts("me", "", true, 100).unwrap();
@@ -404,7 +412,18 @@ mod tests {
         assert_eq!(ids.len(), 1);
         assert!(ids[0].is_default);
         let second = s
-            .save_identity("me", Identity { id: String::new(), name: "Sales".into(), email: "sales@example.com".into(), reply_to: None, bcc: None, signature: String::new(), is_default: true })
+            .save_identity(
+                "me",
+                Identity {
+                    id: String::new(),
+                    name: "Sales".into(),
+                    email: "sales@example.com".into(),
+                    reply_to: None,
+                    bcc: None,
+                    signature: String::new(),
+                    is_default: true,
+                },
+            )
             .unwrap();
         let ids = s.identities("me").unwrap();
         assert_eq!(ids.iter().filter(|i| i.is_default).count(), 1);

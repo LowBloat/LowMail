@@ -69,17 +69,14 @@ pub async fn connect_tcp(host: &str, port: u16) -> Result<TcpStream> {
     let stream = tokio::time::timeout(CONNECT_TIMEOUT, TcpStream::connect((host, port)))
         .await
         .map_err(|_| Error::new(ErrorKind::Network, format!("{host}:{port} did not answer in time.")))?
-        .map_err(|e| {
-            Error::new(ErrorKind::Network, format!("Could not connect to {host}:{port}.")).with_detail(e.to_string())
-        })?;
+        .map_err(|e| Error::new(ErrorKind::Network, format!("Could not connect to {host}:{port}.")).with_detail(e.to_string()))?;
     let _ = stream.set_nodelay(true);
     Ok(stream)
 }
 
 /// Wraps a connected socket in TLS.
 pub async fn upgrade(stream: TcpStream, host: &str, accept_invalid_certs: bool) -> Result<MailStream> {
-    let name = ServerName::try_from(host.to_string())
-        .map_err(|_| Error::invalid(format!("Invalid server name: {host}")))?;
+    let name = ServerName::try_from(host.to_string()).map_err(|_| Error::invalid(format!("Invalid server name: {host}")))?;
     let connector = TlsConnector::from(client_config(accept_invalid_certs));
     let tls = tokio::time::timeout(CONNECT_TIMEOUT, connector.connect(name, stream))
         .await

@@ -12,7 +12,12 @@ use lowmail_core::store::Store;
 use serde_json::json;
 
 fn account(server: &lowmail_testserver::Server, email: &str) -> AccountConfig {
-    let ep = |addr: std::net::SocketAddr| Endpoint { host: addr.ip().to_string(), port: addr.port(), security: Security::None, accept_invalid_certs: false };
+    let ep = |addr: std::net::SocketAddr| Endpoint {
+        host: addr.ip().to_string(),
+        port: addr.port(),
+        security: Security::None,
+        accept_invalid_certs: false,
+    };
     AccountConfig {
         id: email.into(),
         label: String::new(),
@@ -31,9 +36,8 @@ async fn setup() -> (lowmail_testserver::Server, Arc<MailClient>) {
         .await
         .unwrap();
     let store = Arc::new(Store::memory().unwrap());
-    let client = MailClient::connect(account(&server, "alice@lowmail.test"), "alice".into(), store, "alice@lowmail.test".into(), 3)
-        .await
-        .unwrap();
+    let client =
+        MailClient::connect(account(&server, "alice@lowmail.test"), "alice".into(), store, "alice@lowmail.test".into(), 3).await.unwrap();
     (server, client)
 }
 
@@ -63,7 +67,9 @@ async fn folders_list_read_and_flags() {
     let page = c.list("INBOX", 0, 20, &Sort::default(), &Filter::default()).await.unwrap();
     assert_eq!(page.total, inbox.total);
     assert_eq!(page.items.len(), 20);
-    for w in page.items.windows(2) { assert!(w[0].date >= w[1].date, "newest first: {} {} / {} {}", w[0].subject, w[0].date, w[1].subject, w[1].date); }
+    for w in page.items.windows(2) {
+        assert!(w[0].date >= w[1].date, "newest first: {} {} / {} {}", w[0].subject, w[0].date, w[1].subject, w[1].date);
+    }
     assert!(page.items.iter().all(|m| !m.from.is_empty()));
 
     // Every message parses.
@@ -80,7 +86,10 @@ async fn folders_list_read_and_flags() {
     assert!(!again[0].flags.seen && again[0].flags.flagged);
 
     // Search.
-    let found = c.list("INBOX", 0, 50, &Sort::default(), &Filter { text: "relatório".into(), scope: SearchScope::Everything, ..Default::default() }).await.unwrap();
+    let found = c
+        .list("INBOX", 0, 50, &Sort::default(), &Filter { text: "relatório".into(), scope: SearchScope::Everything, ..Default::default() })
+        .await
+        .unwrap();
     assert!(found.total >= 1, "UTF-8 search finds messages");
     let unread = c.list("INBOX", 0, 500, &Sort::default(), &Filter { unread: true, ..Default::default() }).await.unwrap();
     assert!(unread.items.iter().all(|m| !m.flags.seen));
@@ -214,7 +223,9 @@ async fn compose_reply_send_and_drafts() {
     assert!(sent.rcpt.iter().any(|r| r == "hidden@example.com"));
     assert!(!String::from_utf8_lossy(&sent.raw).contains("hidden@example.com"));
     // Bob received it.
-    let bob = MailClient::connect(account(&server, "bob@lowmail.test"), "bob".into(), Arc::new(Store::memory().unwrap()), "bob".into(), 1).await.unwrap();
+    let bob = MailClient::connect(account(&server, "bob@lowmail.test"), "bob".into(), Arc::new(Store::memory().unwrap()), "bob".into(), 1)
+        .await
+        .unwrap();
     let bob_inbox = bob.list("INBOX", 0, 10, &Sort::default(), &Filter::default()).await.unwrap();
     let got = bob.message("INBOX", bob_inbox.items[0].uid, false, false).await.unwrap();
     assert_eq!(got.summary.subject, draft.subject);
@@ -254,7 +265,12 @@ async fn filters_round_trip() {
         name: "Boletos".into(),
         enabled: true,
         match_all: true,
-        conditions: vec![sieve::Condition { field: sieve::Field::Subject, header: String::new(), op: sieve::Op::Contains, value: "boleto".into() }],
+        conditions: vec![sieve::Condition {
+            field: sieve::Field::Subject,
+            header: String::new(),
+            op: sieve::Op::Contains,
+            value: "boleto".into(),
+        }],
         actions: vec![sieve::Action::Move { folder: "Projetos/Clientes".into() }],
         stop: true,
     });
@@ -282,7 +298,8 @@ async fn rpc_and_events() {
     assert!(quota["limit"].as_u64().unwrap() > 0);
     let saved = dispatch(&c, "contacts.save", json!({ "contact": { "name": "Ana", "emails": ["ana@example.com"] } })).await.unwrap();
     assert!(!saved["id"].as_str().unwrap().is_empty());
-    let imported = dispatch(&c, "contacts.import", json!({ "text": "BEGIN:VCARD\r\nFN:Zé\r\nEMAIL:ze@example.com\r\nEND:VCARD\r\n" })).await.unwrap();
+    let imported =
+        dispatch(&c, "contacts.import", json!({ "text": "BEGIN:VCARD\r\nFN:Zé\r\nEMAIL:ze@example.com\r\nEND:VCARD\r\n" })).await.unwrap();
     assert_eq!(imported["added"], 1);
 
     // New mail arrives while watching.

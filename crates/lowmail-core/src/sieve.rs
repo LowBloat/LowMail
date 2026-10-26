@@ -60,13 +60,23 @@ pub struct Condition {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Action {
     /// Folder path as listed by IMAP (modified UTF-7).
-    Move { folder: String },
-    Copy { folder: String },
+    Move {
+        folder: String,
+    },
+    Copy {
+        folder: String,
+    },
     MarkRead,
     Flag,
-    Forward { to: String, #[serde(default)] keep: bool },
+    Forward {
+        to: String,
+        #[serde(default)]
+        keep: bool,
+    },
     Discard,
-    Reject { message: String },
+    Reject {
+        message: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -292,7 +302,9 @@ pub fn generate(filters: &Filters) -> Result<String> {
     needs.sort_unstable();
     needs.dedup();
     let meta = base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(filters)?);
-    let mut script = String::from("# Filters and vacation reply managed by LowMail.\n# Edits made here by hand are replaced the next time LowMail saves.\n");
+    let mut script = String::from(
+        "# Filters and vacation reply managed by LowMail.\n# Edits made here by hand are replaced the next time LowMail saves.\n",
+    );
     script.push_str(&format!("{META_PREFIX}{meta}\n"));
     if !needs.is_empty() {
         script.push_str(&format!("require {};\n", sieve_list(&needs.iter().map(|s| s.to_string()).collect::<Vec<_>>())));
@@ -501,7 +513,8 @@ pub async fn load(account: &AccountConfig, password: &str) -> Result<FilterState
     let mut client = Client::connect(endpoint(account)?, &account.username, password).await?;
     let scripts = client.list().await?;
     let active = scripts.iter().find(|(_, a)| *a).map(|(n, _)| n.clone());
-    let mut state = FilterState { filters: Filters::default(), foreign_script: None, foreign_content: None, extensions: client.extensions.clone() };
+    let mut state =
+        FilterState { filters: Filters::default(), foreign_script: None, foreign_content: None, extensions: client.extensions.clone() };
     if scripts.iter().any(|(n, _)| n == SCRIPT_NAME) {
         let text = client.get(SCRIPT_NAME).await?;
         if let Some(f) = parse_meta(&text) {
@@ -545,7 +558,15 @@ mod tests {
                 actions: vec![Action::Move { folder: "Projetos/Relat&APM-rios".into() }, Action::MarkRead],
                 stop: true,
             }],
-            vacation: Vacation { enabled: true, subject: "Férias".into(), body: "Volto dia 10.\n\"Até\"".into(), days: 3, start: Some("2026-01-02".into()), end: None, addresses: vec![] },
+            vacation: Vacation {
+                enabled: true,
+                subject: "Férias".into(),
+                body: "Volto dia 10.\n\"Até\"".into(),
+                days: 3,
+                start: Some("2026-01-02".into()),
+                end: None,
+                addresses: vec![],
+            },
         };
         let script = generate(&filters).unwrap();
         assert!(script.contains("require [\"date\", \"fileinto\", \"imap4flags\", \"relational\", \"vacation\"];"));

@@ -62,11 +62,7 @@ impl From<ParseError> for SearchError {
 
 /// Accepts the charsets we can search with.
 pub(crate) fn check_charset(name: &str) -> Result<(), SearchError> {
-    if name.eq_ignore_ascii_case("UTF-8") || name.eq_ignore_ascii_case("US-ASCII") {
-        Ok(())
-    } else {
-        Err(SearchError::BadCharset)
-    }
+    if name.eq_ignore_ascii_case("UTF-8") || name.eq_ignore_ascii_case("US-ASCII") { Ok(()) } else { Err(SearchError::BadCharset) }
 }
 
 /// Parses `[CHARSET x] key *(SP key)` up to the end of the command.
@@ -89,11 +85,7 @@ pub(crate) fn parse_keys(p: &mut Parser<'_>) -> Result<Key, SearchError> {
             break;
         }
     }
-    Ok(if keys.len() == 1 {
-        keys.remove(0)
-    } else {
-        Key::And(keys)
-    })
+    Ok(if keys.len() == 1 { keys.remove(0) } else { Key::And(keys) })
 }
 
 fn string_arg(p: &mut Parser<'_>) -> PResult<String> {
@@ -169,11 +161,7 @@ fn parse_key_at(p: &mut Parser<'_>, depth: usize) -> PResult<Key> {
                 "ON" => DateCmp::On,
                 _ => DateCmp::Since,
             };
-            Ok(if word.starts_with("SENT") {
-                Key::Sent(cmp, date)
-            } else {
-                Key::Internal(cmp, date)
-            })
+            Ok(if word.starts_with("SENT") { Key::Sent(cmp, date) } else { Key::Internal(cmp, date) })
         }
         "LARGER" => {
             p.sp()?;
@@ -243,24 +231,13 @@ pub(crate) fn matches(key: &Key, c: &Candidate, bounds: &Bounds) -> bool {
             };
             hay.to_lowercase().contains(needle.as_str())
         }
-        Key::Subject(needle) => c
-            .data
-            .meta()
-            .subject
-            .to_lowercase()
-            .contains(needle.as_str()),
+        Key::Subject(needle) => c.data.meta().subject.to_lowercase().contains(needle.as_str()),
         Key::Body(needle) => c.data.body_text().contains(needle.as_str()),
-        Key::Text(needle) => {
-            header_contains(&c.data, None, needle) || c.data.body_text().contains(needle.as_str())
-        }
+        Key::Text(needle) => header_contains(&c.data, None, needle) || c.data.body_text().contains(needle.as_str()),
         Key::Header(name, needle) => header_contains(&c.data, Some(name), needle),
         Key::Internal(cmp, date) => compare(*cmp, c.internal_date.date_naive(), *date),
         Key::Sent(cmp, date) => {
-            let sent = c
-                .data
-                .meta()
-                .sent
-                .map_or_else(|| c.internal_date.date_naive(), |s| s.date);
+            let sent = c.data.meta().sent.map_or_else(|| c.internal_date.date_naive(), |s| s.date);
             compare(*cmp, sent, *date)
         }
         Key::Larger(n) => c.data.raw.len() as u64 > *n,
@@ -288,10 +265,7 @@ fn header_contains(data: &MessageData, name: Option<&str>, needle: &str) -> bool
         if decode_text(field.value).to_lowercase().contains(needle) {
             return true;
         }
-        name.is_none()
-            && String::from_utf8_lossy(field.name)
-                .to_lowercase()
-                .contains(needle)
+        name.is_none() && String::from_utf8_lossy(field.name).to_lowercase().contains(needle)
     })
 }
 
@@ -312,17 +286,8 @@ mod tests {
 
     fn search(program: &str, c: &Candidate) -> bool {
         let mut p = Parser::new(program.as_bytes());
-        let Ok(key) = parse_program(&mut p, true) else {
-            panic!("parse failed: {program}")
-        };
-        matches(
-            &key,
-            c,
-            &Bounds {
-                max_seq: 1,
-                max_uid: 10,
-            },
-        )
+        let Ok(key) = parse_program(&mut p, true) else { panic!("parse failed: {program}") };
+        matches(&key, c, &Bounds { max_seq: 1, max_uid: 10 })
     }
 
     #[test]
@@ -336,10 +301,7 @@ mod tests {
         assert!(search("BODY \"corpo da\"", &c));
         assert!(search("NOT UNSEEN", &c));
         assert!(search("OR FLAGGED SEEN", &c));
-        assert!(search(
-            "(SEEN UID 5:*) SENTON 6-Oct-2025 SINCE 7-Oct-2025",
-            &c
-        ));
+        assert!(search("(SEEN UID 5:*) SENTON 6-Oct-2025 SINCE 7-Oct-2025", &c));
         assert!(search("HEADER X-Tag BLUE", &c));
         assert!(search("TEXT x-tag", &c));
         assert!(!search("HEADER X-Missing \"\"", &c));

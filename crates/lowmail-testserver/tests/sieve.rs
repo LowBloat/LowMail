@@ -14,27 +14,15 @@ async fn manage_scripts() {
     assert!(greeting.contains(&"\"IMPLEMENTATION\" \"LowMail Test\"".to_owned()));
     assert!(greeting.contains(&"\"SASL\" \"PLAIN\"".to_owned()));
     assert!(greeting.contains(&"\"VERSION\" \"1.0\"".to_owned()));
-    assert!(
-        greeting
-            .iter()
-            .any(|l| l.starts_with("\"SIEVE\" \"fileinto reject envelope vacation"))
-    );
+    assert!(greeting.iter().any(|l| l.starts_with("\"SIEVE\" \"fileinto reject envelope vacation")));
 
     c.send("LISTSCRIPTS\r\n").await;
     assert!(c.line().await.starts_with("NO"));
 
-    c.send(&format!(
-        "AUTHENTICATE \"PLAIN\" \"{}\"\r\n",
-        plain_auth(ALICE, "alice")
-    ))
-    .await;
+    c.send(&format!("AUTHENTICATE \"PLAIN\" \"{}\"\r\n", plain_auth(ALICE, "alice"))).await;
     assert!(c.line().await.starts_with("OK"));
 
-    c.send(&format!(
-        "PUTSCRIPT \"lists\" {{{}+}}\r\n{SCRIPT}\r\n",
-        SCRIPT.len()
-    ))
-    .await;
+    c.send(&format!("PUTSCRIPT \"lists\" {{{}+}}\r\n{SCRIPT}\r\n", SCRIPT.len())).await;
     assert!(c.line().await.starts_with("OK"));
     c.send("PUTSCRIPT \"other\" \"keep;\"\r\n").await;
     assert!(c.line().await.starts_with("OK"));
@@ -71,10 +59,7 @@ async fn manage_scripts() {
 
     assert_eq!(
         server.sieve_scripts(ALICE),
-        vec![
-            ("lists".to_owned(), SCRIPT.to_owned(), true),
-            ("renamed".to_owned(), "keep;".to_owned(), false),
-        ]
+        vec![("lists".to_owned(), SCRIPT.to_owned(), true), ("renamed".to_owned(), "keep;".to_owned(), false),]
     );
 
     c.send("SETACTIVE \"\"\r\n").await;

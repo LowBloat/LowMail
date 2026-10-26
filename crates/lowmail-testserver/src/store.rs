@@ -14,8 +14,7 @@ use crate::message::MessageData;
 pub(crate) const DELIMITER: char = '/';
 
 /// The five system flags that can be stored (`\Recent` is session state).
-pub(crate) const SYSTEM_FLAGS: [&str; 5] =
-    ["\\Answered", "\\Flagged", "\\Deleted", "\\Seen", "\\Draft"];
+pub(crate) const SYSTEM_FLAGS: [&str; 5] = ["\\Answered", "\\Flagged", "\\Deleted", "\\Seen", "\\Draft"];
 
 /// RFC 6154 special-use attributes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -99,11 +98,7 @@ pub(crate) fn normalize_mailbox(name: &str) -> String {
         Some(i) => name.split_at(i),
         None => (name, ""),
     };
-    if head.eq_ignore_ascii_case("INBOX") {
-        format!("INBOX{tail}")
-    } else {
-        name.to_owned()
-    }
+    if head.eq_ignore_ascii_case("INBOX") { format!("INBOX{tail}") } else { name.to_owned() }
 }
 
 /// A mailbox and its messages, ordered by UID.
@@ -118,14 +113,7 @@ pub(crate) struct Mailbox {
 
 impl Mailbox {
     fn new(name: String, uid_validity: u32, special_use: Option<SpecialUse>) -> Self {
-        Self {
-            name,
-            uid_validity,
-            uid_next: 1,
-            subscribed: true,
-            special_use,
-            messages: Vec::new(),
-        }
+        Self { name, uid_validity, uid_next: 1, subscribed: true, special_use, messages: Vec::new() }
     }
 
     pub(crate) fn position(&self, uid: u32) -> Option<usize> {
@@ -141,12 +129,7 @@ impl Mailbox {
     }
 
     /// Appends a message (marked recent) and returns its UID.
-    pub(crate) fn append(
-        &mut self,
-        data: Arc<MessageData>,
-        flags: Vec<String>,
-        internal_date: DateTime<FixedOffset>,
-    ) -> u32 {
+    pub(crate) fn append(&mut self, data: Arc<MessageData>, flags: Vec<String>, internal_date: DateTime<FixedOffset>) -> u32 {
         let uid = self.uid_next;
         self.uid_next += 1;
         let mut clean = Vec::new();
@@ -155,21 +138,12 @@ impl Mailbox {
                 add_flag(&mut clean, &canonical_flag(&flag));
             }
         }
-        self.messages.push(Message {
-            uid,
-            flags: clean,
-            internal_date,
-            data,
-            recent: true,
-        });
+        self.messages.push(Message { uid, flags: clean, internal_date, data, recent: true });
         uid
     }
 
     pub(crate) fn unseen(&self) -> usize {
-        self.messages
-            .iter()
-            .filter(|m| !m.has_flag("\\Seen"))
-            .count()
+        self.messages.iter().filter(|m| !m.has_flag("\\Seen")).count()
     }
 
     pub(crate) fn recent(&self) -> usize {
@@ -241,12 +215,7 @@ impl Inner {
     }
 
     /// Creates `name` (already normalized) and any missing parents.
-    pub(crate) fn create_mailbox(
-        &mut self,
-        user: &str,
-        name: &str,
-        special_use: Option<SpecialUse>,
-    ) -> Result<(), MailboxError> {
+    pub(crate) fn create_mailbox(&mut self, user: &str, name: &str, special_use: Option<SpecialUse>) -> Result<(), MailboxError> {
         if name.is_empty() || name.split(DELIMITER).any(str::is_empty) {
             return Err(MailboxError::Invalid);
         }
@@ -268,18 +237,14 @@ impl Inner {
             let validity = self.new_uid_validity();
             let account = self.account_mut(user).ok_or(MailboxError::Missing)?;
             let special = if last { special_use } else { None };
-            account
-                .mailboxes
-                .insert(path.clone(), Mailbox::new(path.clone(), validity, special));
+            account.mailboxes.insert(path.clone(), Mailbox::new(path.clone(), validity, special));
         }
         Ok(())
     }
 
     /// Total storage used by `user`, in bytes.
     pub(crate) fn usage(&self, user: &str) -> usize {
-        self.account(user)
-            .map(|a| a.mailboxes.values().map(Mailbox::size).sum())
-            .unwrap_or(0)
+        self.account(user).map(|a| a.mailboxes.values().map(Mailbox::size).sum()).unwrap_or(0)
     }
 }
 
@@ -292,19 +257,11 @@ pub(crate) struct Store {
 impl Store {
     pub(crate) fn new(users: &[(String, String)]) -> Self {
         let base = (chrono::Utc::now().timestamp() as u32) & 0x3fff_ffff;
-        let mut inner = Inner {
-            accounts: BTreeMap::new(),
-            outbound: Vec::new(),
-            next_validity: base,
-        };
+        let mut inner = Inner { accounts: BTreeMap::new(), outbound: Vec::new(), next_validity: base };
         for (email, password) in users {
             inner.accounts.insert(
                 email.to_ascii_lowercase(),
-                Account {
-                    password: password.clone(),
-                    mailboxes: BTreeMap::new(),
-                    scripts: Vec::new(),
-                },
+                Account { password: password.clone(), mailboxes: BTreeMap::new(), scripts: Vec::new() },
             );
             let defaults = [
                 ("INBOX", None),
@@ -315,16 +272,11 @@ impl Store {
                 ("Archive", Some(SpecialUse::Archive)),
             ];
             for (name, special) in defaults {
-                inner
-                    .create_mailbox(email, name, special)
-                    .expect("default mailbox");
+                inner.create_mailbox(email, name, special).expect("default mailbox");
             }
         }
         let (changes, _) = watch::channel(0);
-        Self {
-            inner: Mutex::new(inner),
-            changes,
-        }
+        Self { inner: Mutex::new(inner), changes }
     }
 
     pub(crate) fn lock(&self) -> MutexGuard<'_, Inner> {
@@ -377,13 +329,7 @@ mod tests {
         inner.create_mailbox("a@x", "A/B/C", None).unwrap();
         assert!(inner.mailbox("a@x", "A").is_some());
         assert!(inner.mailbox("a@x", "A/B").is_some());
-        assert_eq!(
-            inner.create_mailbox("a@x", "A/B", None),
-            Err(MailboxError::Exists)
-        );
-        assert_eq!(
-            inner.create_mailbox("a@x", "A//B", None),
-            Err(MailboxError::Invalid)
-        );
+        assert_eq!(inner.create_mailbox("a@x", "A/B", None), Err(MailboxError::Exists));
+        assert_eq!(inner.create_mailbox("a@x", "A//B", None), Err(MailboxError::Invalid));
     }
 }

@@ -4,28 +4,16 @@
 //!   lowmail healthcheck  exit 0 when the local server answers
 //!   lowmail demo         run with a built-in test mail server (needs the `demo` feature)
 
-mod app;
-mod assets;
-mod config;
-mod sessions;
-
-use std::net::SocketAddr;
-use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
-use lowmail_core::store::Store;
+use lowmail_server::config::Config;
+use lowmail_server::serve;
 use tracing_subscriber::EnvFilter;
-
-use crate::app::AppState;
-use crate::config::Config;
-use crate::sessions::{LoginLimiter, Sessions};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::try_from_env("LOWMAIL_LOG").unwrap_or_else(|_| EnvFilter::new("info")))
-        .init();
+    tracing_subscriber::fmt().with_env_filter(EnvFilter::try_from_env("LOWMAIL_LOG").unwrap_or_else(|_| EnvFilter::new("info"))).init();
     let command = std::env::args().nth(1).unwrap_or_else(|| "serve".into());
     match command.as_str() {
         "serve" => serve(Config::from_env()?).await,
@@ -40,38 +28,6 @@ async fn main() -> anyhow::Result<()> {
             std::process::exit(2);
         }
     }
-}
-
-pub async fn serve(config: Config) -> anyhow::Result<()> {
-    let store = Arc::new(Store::open(&config.data_dir.join("lowmail.db")).context("opening the database")?);
-    let listen = config.listen;
-    let idle = config.session_idle;
-    tracing::info!(
-        imap = %format!("{}:{}", config.imap.host, config.imap.port),
-        smtp = %format!("{}:{}", config.smtp.host, config.smtp.port),
-        "LowMail {} listening on http://{listen}",
-        env!("CARGO_PKG_VERSION")
-    );
-    if !assets::available() {
-        tracing::warn!("the web interface is missing: run `bun run build` before building the server");
-    }
-    let state = Arc::new(AppState { config, store, sessions: Sessions::default(), limiter: LoginLimiter::default() });
-    let reaper = state.clone();
-    tokio::spawn(async move {
-        let mut tick = tokio::time::interval(Duration::from_secs(60));
-        loop {
-            tick.tick().await;
-            reaper.sessions.reap(idle).await;
-        }
-    });
-    let listener = tokio::net::TcpListener::bind(listen).await.with_context(|| format!("listening on {listen}"))?;
-    axum::serve(listener, app::router(state).into_make_service_with_connect_info::<SocketAddr>())
-        .with_graceful_shutdown(async {
-            let _ = tokio::signal::ctrl_c().await;
-            tracing::info!("shutting down");
-        })
-        .await?;
-    Ok(())
 }
 
 async fn healthcheck() -> anyhow::Result<()> {

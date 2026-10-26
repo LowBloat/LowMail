@@ -22,10 +22,7 @@ pub(crate) fn seed(store: &Store, users: &[(String, String)], now: DateTime<Utc>
     let offset = FixedOffset::west_opt(3 * 3600).expect("valid offset");
     let now = now.with_timezone(&offset);
     for (i, (email, _)) in users.iter().enumerate() {
-        let generator = Gen {
-            now,
-            me: email.to_ascii_lowercase(),
-        };
+        let generator = Gen { now, me: email.to_ascii_lowercase() };
         let mails = if i == 0 {
             let mut inner = store.lock();
             for folder in ["Projetos", "Projetos/Relat&APM-rios", "Projetos/Clientes"] {
@@ -40,11 +37,7 @@ pub(crate) fn seed(store: &Store, users: &[(String, String)], now: DateTime<Utc>
         let mut inner = store.lock();
         for mail in sorted {
             if let Some(mbox) = inner.mailbox_mut(&generator.me, mail.mailbox) {
-                mbox.append(
-                    Arc::new(MessageData::new(mail.raw)),
-                    mail.flags.iter().map(|f| f.to_string()).collect(),
-                    mail.date,
-                );
+                mbox.append(Arc::new(MessageData::new(mail.raw)), mail.flags.iter().map(|f| f.to_string()).collect(), mail.date);
                 if let Some(m) = mbox.messages.last_mut() {
                     m.recent = false;
                 }
@@ -84,16 +77,7 @@ fn encode_words(text: &str) -> String {
         for &b in ch.encode_utf8(&mut buf).as_bytes() {
             match b {
                 b' ' => enc.push('_'),
-                b'a'..=b'z'
-                | b'A'..=b'Z'
-                | b'0'..=b'9'
-                | b'.'
-                | b','
-                | b'-'
-                | b'!'
-                | b'*'
-                | b'+'
-                | b'/' => enc.push(b as char),
+                b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'.' | b',' | b'-' | b'!' | b'*' | b'+' | b'/' => enc.push(b as char),
                 _ => q_byte(&mut enc, b),
             }
         }
@@ -154,11 +138,7 @@ fn qp(text: &str) -> String {
         for (j, &b) in bytes.iter().enumerate() {
             let last = j + 1 == bytes.len();
             let mut enc = String::new();
-            if b == b'='
-                || b >= 0x7f
-                || (b < 0x20 && b != b'\t')
-                || (last && (b == b' ' || b == b'\t'))
-            {
+            if b == b'=' || b >= 0x7f || (b < 0x20 && b != b'\t') || (last && (b == b' ' || b == b'\t')) {
                 q_byte(&mut enc, b);
             } else {
                 enc.push(b as char);
@@ -176,39 +156,24 @@ fn qp(text: &str) -> String {
 
 fn base64_lines(data: &[u8]) -> String {
     let encoded = encode_base64(data);
-    encoded
-        .as_bytes()
-        .chunks(76)
-        .map(|c| String::from_utf8_lossy(c).into_owned())
-        .collect::<Vec<_>>()
-        .join("\r\n")
+    encoded.as_bytes().chunks(76).map(|c| String::from_utf8_lossy(c).into_owned()).collect::<Vec<_>>().join("\r\n")
 }
 
 fn text_part(body: &str) -> String {
-    format!(
-        "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n{}",
-        crlf(body)
-    )
+    format!("Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n{}", crlf(body))
 }
 
 fn qp_text_part(body: &str) -> String {
-    format!(
-        "Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n{}",
-        qp(body)
-    )
+    format!("Content-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n{}", qp(body))
 }
 
 fn html_part(html: &str) -> String {
-    format!(
-        "Content-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n{}",
-        qp(html)
-    )
+    format!("Content-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n{}", qp(html))
 }
 
 fn multipart(subtype: &str, boundary: &str, parts: &[String]) -> String {
-    let mut out = format!(
-        "Content-Type: multipart/{subtype}; boundary=\"{boundary}\"\r\n\r\nThis is a multi-part message in MIME format.\r\n"
-    );
+    let mut out =
+        format!("Content-Type: multipart/{subtype}; boundary=\"{boundary}\"\r\n\r\nThis is a multi-part message in MIME format.\r\n");
     for part in parts {
         out.push_str(&format!("\r\n--{boundary}\r\n{part}"));
     }
@@ -238,11 +203,7 @@ fn crc32(data: &[u8]) -> u32 {
     for &b in data {
         crc ^= u32::from(b);
         for _ in 0..8 {
-            crc = if crc & 1 != 0 {
-                0xedb8_8320 ^ (crc >> 1)
-            } else {
-                crc >> 1
-            };
+            crc = if crc & 1 != 0 { 0xedb8_8320 ^ (crc >> 1) } else { crc >> 1 };
         }
     }
     !crc
@@ -302,19 +263,13 @@ fn gradient_png() -> Vec<u8> {
 fn logo_png() -> Vec<u8> {
     png(32, 32, |x, y| {
         let inside = (8..24).contains(&x) && (8..24).contains(&y);
-        if inside {
-            [46, 125, 50]
-        } else {
-            [255, 255, 255]
-        }
+        if inside { [46, 125, 50] } else { [255, 255, 255] }
     })
 }
 
 /// A minimal single-page PDF with correct xref offsets.
 fn pdf(title: &str) -> Vec<u8> {
-    let content = format!(
-        "BT /F1 20 Tf 72 760 Td ({title}) Tj ET\nBT /F1 12 Tf 72 730 Td (Gerado pelo LowMail test server) Tj ET\n"
-    );
+    let content = format!("BT /F1 20 Tf 72 760 Td ({title}) Tj ET\nBT /F1 12 Tf 72 730 Td (Gerado pelo LowMail test server) Tj ET\n");
     let objects = [
         "<< /Type /Catalog /Pages 2 0 R >>".to_owned(),
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>".to_owned(),
@@ -329,17 +284,11 @@ fn pdf(title: &str) -> Vec<u8> {
         out.push_str(&format!("{} 0 obj\n{obj}\nendobj\n", i + 1));
     }
     let xref = out.len();
-    out.push_str(&format!(
-        "xref\n0 {}\n0000000000 65535 f \n",
-        objects.len() + 1
-    ));
+    out.push_str(&format!("xref\n0 {}\n0000000000 65535 f \n", objects.len() + 1));
     for off in offsets {
         out.push_str(&format!("{off:010} 00000 n \n"));
     }
-    out.push_str(&format!(
-        "trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n",
-        objects.len() + 1
-    ));
+    out.push_str(&format!("trailer\n<< /Size {} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n", objects.len() + 1));
     out.into_bytes()
 }
 
@@ -369,15 +318,7 @@ struct Gen {
 }
 
 /// `(days ago, minutes ago, (name, email), subject, text/link, html, flags)`.
-type RichSpec = (
-    i64,
-    i64,
-    (&'static str, &'static str),
-    &'static str,
-    &'static str,
-    &'static str,
-    &'static [&'static str],
-);
+type RichSpec = (i64, i64, (&'static str, &'static str), &'static str, &'static str, &'static str, &'static [&'static str]);
 
 /// A short single-part text message description.
 struct Simple {
@@ -408,15 +349,7 @@ impl Gen {
     }
 
     /// Standard header block (ends with `MIME-Version`).
-    fn head(
-        &self,
-        date: DateTime<FixedOffset>,
-        from: &str,
-        to: &str,
-        subject: &str,
-        id: &str,
-        extra: &str,
-    ) -> String {
+    fn head(&self, date: DateTime<FixedOffset>, from: &str, to: &str, subject: &str, id: &str, extra: &str) -> String {
         format!(
             "Date: {}\r\nFrom: {from}\r\nTo: {to}\r\n{}Message-ID: <{id}>\r\n{extra}MIME-Version: 1.0\r\n",
             date.to_rfc2822(),
@@ -424,36 +357,14 @@ impl Gen {
         )
     }
 
-    fn mail(
-        &self,
-        mailbox: &'static str,
-        date: DateTime<FixedOffset>,
-        flags: &'static [&'static str],
-        raw: String,
-    ) -> Mail {
-        Mail {
-            mailbox,
-            date,
-            flags,
-            raw: raw.into_bytes(),
-        }
+    fn mail(&self, mailbox: &'static str, date: DateTime<FixedOffset>, flags: &'static [&'static str], raw: String) -> Mail {
+        Mail { mailbox, date, flags, raw: raw.into_bytes() }
     }
 
     fn simple(&self, mailbox: &'static str, s: &Simple, id: &str) -> Mail {
         let date = self.at(s.days, s.mins);
-        let head = self.head(
-            date,
-            &addr(s.from.0, s.from.1),
-            &self.me_addr(),
-            s.subject,
-            id,
-            "",
-        );
-        let part = if s.body.is_ascii() {
-            text_part(s.body)
-        } else {
-            qp_text_part(s.body)
-        };
+        let head = self.head(date, &addr(s.from.0, s.from.1), &self.me_addr(), s.subject, id, "");
+        let part = if s.body.is_ascii() { text_part(s.body) } else { qp_text_part(s.body) };
         self.mail(mailbox, date, s.flags, head + &part)
     }
 
@@ -498,20 +409,28 @@ impl Gen {
                 "Reunião amanhã às 10h",
                 &format!("meeting.{}@acme.com.br", self.me),
                 "",
-            ) + &qp_text_part(
-                "Oi,\n\nConfirmando nossa reunião amanhã às 10h na sala 3.\n\nCarlos\n",
-            ),
+            ) + &qp_text_part("Oi,\n\nConfirmando nossa reunião amanhã às 10h na sala 3.\n\nCarlos\n"),
         ));
         let d = self.at(8, 15);
         mails.push(self.mail(
             "INBOX",
             d,
             SEEN,
-            self.head(d, &addr("Notion", "notify@notion.example"), &me, "Your weekly digest", &format!("digest.{}@notion.example", self.me), "")
-                + &multipart("alternative", "bob-alt-1", &[
+            self.head(
+                d,
+                &addr("Notion", "notify@notion.example"),
+                &me,
+                "Your weekly digest",
+                &format!("digest.{}@notion.example", self.me),
+                "",
+            ) + &multipart(
+                "alternative",
+                "bob-alt-1",
+                &[
                     text_part("Here is what happened in your workspace this week.\n- 3 pages edited\n- 2 comments\n"),
                     html_part("<html><body><h2>Your weekly digest</h2><ul><li>3 pages edited</li><li>2 comments</li></ul></body></html>"),
-                ]),
+                ],
+            ),
         ));
         mails
     }
@@ -579,19 +498,8 @@ impl Gen {
             .enumerate()
             .map(|(i, (days, mins, from, subject, text, html, flags))| {
                 let date = self.at(*days, *mins);
-                let head = self.head(
-                    date,
-                    &addr(from.0, from.1),
-                    &me,
-                    subject,
-                    &format!("alt{i}.seed@lowmail.test"),
-                    "",
-                );
-                let body = multipart(
-                    "alternative",
-                    &format!("alt-boundary-{i}"),
-                    &[qp_text_part(text), html_part(html)],
-                );
+                let head = self.head(date, &addr(from.0, from.1), &me, subject, &format!("alt{i}.seed@lowmail.test"), "");
+                let body = multipart("alternative", &format!("alt-boundary-{i}"), &[qp_text_part(text), html_part(html)]);
                 self.mail("INBOX", date, flags, head + &body)
             })
             .collect()
@@ -686,11 +594,7 @@ impl Gen {
                 qp_text_part(
                     "Olá Alice,\n\nSegue em anexo o contrato revisado com as alterações da cláusula 7.\nPor favor, confirme até quinta-feira.\n\nAtenciosamente,\nAna Ribeiro\nDepartamento Jurídico\n",
                 ),
-                attachment(
-                    "application/pdf",
-                    "contrato-revisado.pdf",
-                    &pdf("Contrato LowMail - revisao 3"),
-                ),
+                attachment("application/pdf", "contrato-revisado.pdf", &pdf("Contrato LowMail - revisao 3")),
             ],
         );
         mails.push(self.mail("INBOX", date, FLAGGED, head + &body));
@@ -708,9 +612,7 @@ impl Gen {
             "mixed",
             "mixed-screenshot",
             &[
-                qp_text_part(
-                    "Oi Alice,\n\nO bug aparece quando a lista tem mais de 500 mensagens. Print em anexo.\n\nLucas\n",
-                ),
+                qp_text_part("Oi Alice,\n\nO bug aparece quando a lista tem mais de 500 mensagens. Print em anexo.\n\nLucas\n"),
                 attachment("image/png", "bug-lista.png", &gradient_png()),
             ],
         );
@@ -731,11 +633,7 @@ impl Gen {
             "mixed-logs",
             &[
                 text_part("Segue o log do incidente 4521 para análise.\n"),
-                attachment(
-                    "text/plain; charset=utf-8",
-                    "servidor.log.txt",
-                    crlf(log).as_bytes(),
-                ),
+                attachment("text/plain; charset=utf-8", "servidor.log.txt", crlf(log).as_bytes()),
             ],
         );
         mails.push(self.mail("INBOX", date, SEEN, head + &body));
@@ -754,14 +652,8 @@ impl Gen {
             "mixed",
             "mixed-csv",
             &[
-                qp_text_part(
-                    "Olá,\n\nAnexamos a planilha de despesas de setembro para conferência.\n\nEquipe Financeira\n",
-                ),
-                attachment(
-                    "text/csv; charset=utf-8",
-                    "despesas-setembro.csv",
-                    crlf(csv).as_bytes(),
-                ),
+                qp_text_part("Olá,\n\nAnexamos a planilha de despesas de setembro para conferência.\n\nEquipe Financeira\n"),
+                attachment("text/csv; charset=utf-8", "despesas-setembro.csv", crlf(csv).as_bytes()),
             ],
         );
         mails.push(self.mail("INBOX", date, ANSWERED, head + &body));
@@ -779,9 +671,7 @@ impl Gen {
             "mixed",
             "mixed-zip",
             &[
-                text_part(
-                    "Alice, segue o backup compactado do projeto antes da migração.\n\nPedro\n",
-                ),
+                text_part("Alice, segue o backup compactado do projeto antes da migração.\n\nPedro\n"),
                 attachment("application/zip", "lowmail-backup.zip", &zip_blob(4096)),
             ],
         );
@@ -810,12 +700,7 @@ impl Gen {
         let body = multipart(
             "alternative",
             "alt-convite",
-            &[
-                qp_text_part(
-                    "Lançamento do LowMail 1.0\n\nVocê está convidada para o lançamento no dia 15 de novembro, às 19h.\n",
-                ),
-                related,
-            ],
+            &[qp_text_part("Lançamento do LowMail 1.0\n\nVocê está convidada para o lançamento no dia 15 de novembro, às 19h.\n"), related],
         );
         mails.push(self.mail("INBOX", date, UNREAD_FLAGGED, head + &body));
         mails
@@ -825,12 +710,8 @@ impl Gen {
         let me = self.me_addr();
         let carlos = addr("Carlos Pereira", "carlos.pereira@acme.com.br");
         let mariana = addr("Mariana Costa", "mariana.costa@acme.com.br");
-        let ids = [
-            "migracao-1.seed@acme.com.br",
-            "migracao-2.seed@acme.com.br",
-            "migracao-3.seed@acme.com.br",
-            "migracao-4.seed@acme.com.br",
-        ];
+        let ids =
+            ["migracao-1.seed@acme.com.br", "migracao-2.seed@acme.com.br", "migracao-3.seed@acme.com.br", "migracao-4.seed@acme.com.br"];
         let steps: [(i64, i64, &str, &str, &'static [&'static str]); 4] = [
             (
                 5,
@@ -864,11 +745,8 @@ impl Gen {
         let mut mails = Vec::new();
         for (i, (days, mins, from, body, flags)) in steps.iter().enumerate() {
             let date = self.at(*days, *mins);
-            let subject = if i == 0 {
-                "Migração do servidor de e-mail".to_owned()
-            } else {
-                "Re: Migração do servidor de e-mail".to_owned()
-            };
+            let subject =
+                if i == 0 { "Migração do servidor de e-mail".to_owned() } else { "Re: Migração do servidor de e-mail".to_owned() };
             let mut extra = String::new();
             if i > 0 {
                 let refs: Vec<String> = ids[..i].iter().map(|id| format!("<{id}>")).collect();
@@ -894,9 +772,7 @@ impl Gen {
             "Sent",
             date,
             SEEN,
-            head + &qp_text_part(
-                "Por mim tudo certo. Posso ajudar com os testes depois da janela.\n\nAlice\n",
-            ),
+            head + &qp_text_part("Por mim tudo certo. Posso ajudar com os testes depois da janela.\n\nAlice\n"),
         ));
         mails
     }
@@ -907,10 +783,7 @@ impl Gen {
 
         // UTF-8 B-encoded subject.
         let date = self.at(10, 200);
-        let subject = format!(
-            "=?UTF-8?B?{}?=",
-            encode_base64("Relatório mensal de vendas – março".as_bytes())
-        );
+        let subject = format!("=?UTF-8?B?{}?=", encode_base64("Relatório mensal de vendas – março".as_bytes()));
         let raw = format!(
             "Date: {}\r\nFrom: {}\r\nTo: {me}\r\nSubject: {subject}\r\nMessage-ID: <vendas.seed@acme.com.br>\r\nMIME-Version: 1.0\r\n{}",
             date.to_rfc2822(),
@@ -963,12 +836,7 @@ impl Gen {
         raw.extend_from_slice(&latin1(&crlf(
             "Ata da reunião ordinária\n\nPauta:\n1. Manutenção do elevador - aprovada\n2. Pintura da fachada - orçamento em análise\n3. Horário da piscina: das 8h às 22h\n\nAção: síndico enviará cotações até o próximo mês.\n",
         )));
-        mails.push(Mail {
-            mailbox: "INBOX",
-            date,
-            flags: SEEN,
-            raw,
-        });
+        mails.push(Mail { mailbox: "INBOX", date, flags: SEEN, raw });
         mails
     }
 
@@ -979,22 +847,17 @@ impl Gen {
         // Very long subject (folded).
         let date = self.at(8, 240);
         let subject = "Atualização importante sobre a política de privacidade, termos de uso, retenção de dados e as novas integrações com provedores de identidade que entram em vigor no próximo trimestre";
-        let head = self.head(
+        let head = self.head(date, &addr("Compliance", "compliance@acme.com.br"), &me, subject, "longsubject.seed@acme.com.br", "");
+        mails.push(self.mail(
+            "INBOX",
             date,
-            &addr("Compliance", "compliance@acme.com.br"),
-            &me,
-            subject,
-            "longsubject.seed@acme.com.br",
-            "",
-        );
-        mails.push(self.mail("INBOX", date, SEEN, head + &qp_text_part("Olá,\n\nLeia com atenção as mudanças descritas no assunto deste e-mail.\n\nEquipe de Compliance\n")));
+            SEEN,
+            head + &qp_text_part("Olá,\n\nLeia com atenção as mudanças descritas no assunto deste e-mail.\n\nEquipe de Compliance\n"),
+        ));
 
         // Reply-To differs from From.
         let date = self.at(1, 200);
-        let extra = format!(
-            "Reply-To: {}\r\n",
-            addr("Fernanda Souza", "fernanda.souza@gmail.example")
-        );
+        let extra = format!("Reply-To: {}\r\n", addr("Fernanda Souza", "fernanda.souza@gmail.example"));
         let head = self.head(
             date,
             &addr("Site LowMail", "no-reply@lowmail.test"),
@@ -1016,7 +879,14 @@ impl Gen {
             "rustbr.seed@devs.example",
             extra,
         );
-        mails.push(self.mail("INBOX", date, SEEN, head + &qp_text_part("Pessoal, alguém já usou async fn em traits com dyn dispatch em produção?\nQuais crates vocês recomendam?\n\nBruno\n")));
+        mails.push(self.mail(
+            "INBOX",
+            date,
+            SEEN,
+            head + &qp_text_part(
+                "Pessoal, alguém já usou async fn em traits com dyn dispatch em produção?\nQuais crates vocês recomendam?\n\nBruno\n",
+            ),
+        ));
 
         // Many Cc recipients.
         let date = self.at(6, 500);
@@ -1052,15 +922,13 @@ impl Gen {
 
         // Local sender (bob).
         let date = self.at(0, 20);
-        let head = self.head(
+        let head = self.head(date, &addr("Bob", "bob@lowmail.test"), &me, "Testando o LowMail", "bob-test.seed@lowmail.test", "");
+        mails.push(self.mail(
+            "INBOX",
             date,
-            &addr("Bob", "bob@lowmail.test"),
-            &me,
-            "Testando o LowMail",
-            "bob-test.seed@lowmail.test",
-            "",
-        );
-        mails.push(self.mail("INBOX", date, UNREAD, head + &text_part("Oi Alice, este é um e-mail interno enviado entre contas do servidor de testes.\n\nBob\n")));
+            UNREAD,
+            head + &text_part("Oi Alice, este é um e-mail interno enviado entre contas do servidor de testes.\n\nBob\n"),
+        ));
         mails
     }
 
@@ -1126,7 +994,14 @@ impl Gen {
             "draft1.seed@lowmail.test",
             "",
         );
-        mails.push(self.mail("Drafts", date, &["\\Seen", "\\Draft"], head + &qp_text_part("Prezados,\n\nSegue nossa proposta de implantação do LowMail:\n\n- Fase 1: \n- Fase 2: \n\n[terminar antes de enviar]\n")));
+        mails.push(self.mail(
+            "Drafts",
+            date,
+            &["\\Seen", "\\Draft"],
+            head + &qp_text_part(
+                "Prezados,\n\nSegue nossa proposta de implantação do LowMail:\n\n- Fase 1: \n- Fase 2: \n\n[terminar antes de enviar]\n",
+            ),
+        ));
 
         // Archive
         let mut push = |mailbox: &'static str,
@@ -1260,42 +1135,19 @@ impl Gen {
 
         // Projetos/Relatórios (one with an attachment)
         let date = self.at(29, 100);
-        let head = self.head(
-            date,
-            &addr("BI Reports", "bi@acme.com.br"),
-            &me,
-            "Relatório trimestral Q3",
-            "rel1.seed@acme.com.br",
-            "",
-        );
+        let head = self.head(date, &addr("BI Reports", "bi@acme.com.br"), &me, "Relatório trimestral Q3", "rel1.seed@acme.com.br", "");
         let body = multipart(
             "mixed",
             "mixed-q3",
             &[
                 qp_text_part("Segue o relatório trimestral do Q3 em CSV.\n"),
-                attachment(
-                    "text/csv; charset=utf-8",
-                    "q3.csv",
-                    crlf("mes;receita\njul;120000\nago;132500\nset;141200\n").as_bytes(),
-                ),
+                attachment("text/csv; charset=utf-8", "q3.csv", crlf("mes;receita\njul;120000\nago;132500\nset;141200\n").as_bytes()),
             ],
         );
         mails.push(self.mail("Projetos/Relat&APM-rios", date, SEEN, head + &body));
         let date = self.at(55, 100);
-        let head = self.head(
-            date,
-            &addr("BI Reports", "bi@acme.com.br"),
-            &me,
-            "Relatório de uso do produto",
-            "rel2.seed@acme.com.br",
-            "",
-        );
-        mails.push(self.mail(
-            "Projetos/Relat&APM-rios",
-            date,
-            SEEN,
-            head + &qp_text_part("Usuários ativos mensais: 12.430 (+6%).\n"),
-        ));
+        let head = self.head(date, &addr("BI Reports", "bi@acme.com.br"), &me, "Relatório de uso do produto", "rel2.seed@acme.com.br", "");
+        mails.push(self.mail("Projetos/Relat&APM-rios", date, SEEN, head + &qp_text_part("Usuários ativos mensais: 12.430 (+6%).\n")));
         mails
     }
 }
@@ -1534,16 +1386,12 @@ mod tests {
 
     #[test]
     fn encoded_words_are_short() {
-        let enc =
-            encode_words("Atualização importante sobre a política de privacidade e termos de uso");
+        let enc = encode_words("Atualização importante sobre a política de privacidade e termos de uso");
         for word in enc.split("\r\n ") {
             assert!(word.len() <= 75, "{word}");
         }
         let decoded = crate::message::decode_text(enc.as_bytes());
-        assert_eq!(
-            decoded,
-            "Atualização importante sobre a política de privacidade e termos de uso"
-        );
+        assert_eq!(decoded, "Atualização importante sobre a política de privacidade e termos de uso");
     }
 
     #[test]
@@ -1554,46 +1402,18 @@ mod tests {
 
     #[test]
     fn demo_seed() {
-        let users = vec![
-            ("alice@lowmail.test".to_owned(), "alice".to_owned()),
-            ("bob@lowmail.test".to_owned(), "bob".to_owned()),
-        ];
+        let users = vec![("alice@lowmail.test".to_owned(), "alice".to_owned()), ("bob@lowmail.test".to_owned(), "bob".to_owned())];
         let store = Store::new(&users);
         seed(&store, &users, Utc::now());
         let inner = store.lock();
         let inbox = inner.mailbox("alice@lowmail.test", "INBOX").unwrap();
         assert!(inbox.messages.len() >= 55, "{}", inbox.messages.len());
         for m in &inbox.messages {
-            assert!(
-                !m.data
-                    .raw
-                    .windows(2)
-                    .any(|w| w[1] == b'\n' && w[0] != b'\r'),
-                "bare LF in uid {}",
-                m.uid
-            );
+            assert!(!m.data.raw.windows(2).any(|w| w[1] == b'\n' && w[0] != b'\r'), "bare LF in uid {}", m.uid);
             assert!(!m.data.meta().body_structure.is_empty());
         }
-        assert!(
-            inner
-                .mailbox("alice@lowmail.test", "Projetos/Relat&APM-rios")
-                .is_some()
-        );
-        assert_eq!(
-            inner
-                .mailbox("bob@lowmail.test", "INBOX")
-                .unwrap()
-                .messages
-                .len(),
-            3
-        );
-        assert_eq!(
-            inner
-                .mailbox("alice@lowmail.test", "Drafts")
-                .unwrap()
-                .messages
-                .len(),
-            1
-        );
+        assert!(inner.mailbox("alice@lowmail.test", "Projetos/Relat&APM-rios").is_some());
+        assert_eq!(inner.mailbox("bob@lowmail.test", "INBOX").unwrap().messages.len(), 3);
+        assert_eq!(inner.mailbox("alice@lowmail.test", "Drafts").unwrap().messages.len(), 1);
     }
 }

@@ -48,39 +48,37 @@ impl Conn {
         let mut statuses: HashMap<String, (u32, u32)> = HashMap::new();
         let mut subscribed: HashSet<String> = HashSet::new();
         let extended = command.contains("RETURN");
-        self.raw_each(&command, |resp| {
-            match resp {
-                Response::MailboxData(MailboxDatum::List(data)) => {
-                    let mut attrs = Vec::new();
-                    let mut special = None;
-                    for attr in &data.name_attributes {
-                        match attr {
-                            NameAttribute::Sent => special = Some(FolderRole::Sent),
-                            NameAttribute::Drafts => special = Some(FolderRole::Drafts),
-                            NameAttribute::Trash => special = Some(FolderRole::Trash),
-                            NameAttribute::Junk => special = Some(FolderRole::Junk),
-                            NameAttribute::Archive => special = Some(FolderRole::Archive),
-                            NameAttribute::NoSelect => attrs.push("\\NOSELECT".into()),
-                            NameAttribute::NoInferiors => attrs.push("\\NOINFERIORS".into()),
-                            NameAttribute::Extension(e) => attrs.push(e.to_ascii_uppercase()),
-                            _ => {}
-                        }
+        self.raw_each(&command, |resp| match resp {
+            Response::MailboxData(MailboxDatum::List(data)) => {
+                let mut attrs = Vec::new();
+                let mut special = None;
+                for attr in &data.name_attributes {
+                    match attr {
+                        NameAttribute::Sent => special = Some(FolderRole::Sent),
+                        NameAttribute::Drafts => special = Some(FolderRole::Drafts),
+                        NameAttribute::Trash => special = Some(FolderRole::Trash),
+                        NameAttribute::Junk => special = Some(FolderRole::Junk),
+                        NameAttribute::Archive => special = Some(FolderRole::Archive),
+                        NameAttribute::NoSelect => attrs.push("\\NOSELECT".into()),
+                        NameAttribute::NoInferiors => attrs.push("\\NOINFERIORS".into()),
+                        NameAttribute::Extension(e) => attrs.push(e.to_ascii_uppercase()),
+                        _ => {}
                     }
-                    if extended && attrs.iter().any(|a| a == "\\SUBSCRIBED") {
-                        subscribed.insert(data.name.to_string());
-                    }
-                    raw.push(RawFolder {
-                        path: data.name.to_string(),
-                        delimiter: data.delimiter.as_ref().map(|d| d.to_string()),
-                        attrs,
-                        special,
-                    });
                 }
-                Response::MailboxData(MailboxDatum::Status { mailbox, status }) => {
-                    statuses.insert(mailbox.to_string(), status_counts(status));
+                if extended && attrs.iter().any(|a| a == "\\SUBSCRIBED") {
+                    subscribed.insert(data.name.to_string());
                 }
-                _ => {}
+                raw.push(RawFolder {
+                    path: data.name.to_string(),
+                    delimiter: data.delimiter.as_ref().map(|d| d.to_string()),
+                    attrs,
+                    special,
+                });
             }
+            Response::MailboxData(MailboxDatum::Status { mailbox, status }) => {
+                statuses.insert(mailbox.to_string(), status_counts(status));
+            }
+            _ => {}
         })
         .await?;
         if !extended {
@@ -178,11 +176,7 @@ fn personal_prefix(raw: &[RawFolder], delimiter: Option<&str>) -> String {
     let Some(delim) = delimiter else { return String::new() };
     let prefix = format!("INBOX{delim}");
     let others: Vec<&RawFolder> = raw.iter().filter(|f| !f.path.eq_ignore_ascii_case("INBOX")).collect();
-    if !others.is_empty() && others.iter().all(|f| f.path.starts_with(&prefix)) {
-        prefix
-    } else {
-        String::new()
-    }
+    if !others.is_empty() && others.iter().all(|f| f.path.starts_with(&prefix)) { prefix } else { String::new() }
 }
 
 fn status_counts(status: &[StatusAttribute]) -> (u32, u32) {
@@ -202,14 +196,13 @@ fn status_counts(status: &[StatusAttribute]) -> (u32, u32) {
 fn role_by_name(leaf: &str) -> Option<FolderRole> {
     let name = leaf.trim().to_lowercase();
     let role = match name.as_str() {
-        "sent" | "sent items" | "sent messages" | "sent mail" | "enviados" | "itens enviados" | "enviadas"
-        | "mensagens enviadas" => FolderRole::Sent,
-        "drafts" | "draft" | "rascunhos" | "rascunho" => FolderRole::Drafts,
-        "trash" | "deleted items" | "deleted messages" | "bin" | "lixeira" | "itens excluídos" | "itens excluidos"
-        | "excluídos" | "excluidos" => FolderRole::Trash,
-        "junk" | "spam" | "junk e-mail" | "junk email" | "lixo eletrônico" | "lixo eletronico" | "bulk mail" => {
-            FolderRole::Junk
+        "sent" | "sent items" | "sent messages" | "sent mail" | "enviados" | "itens enviados" | "enviadas" | "mensagens enviadas" => {
+            FolderRole::Sent
         }
+        "drafts" | "draft" | "rascunhos" | "rascunho" => FolderRole::Drafts,
+        "trash" | "deleted items" | "deleted messages" | "bin" | "lixeira" | "itens excluídos" | "itens excluidos" | "excluídos"
+        | "excluidos" => FolderRole::Trash,
+        "junk" | "spam" | "junk e-mail" | "junk email" | "lixo eletrônico" | "lixo eletronico" | "bulk mail" => FolderRole::Junk,
         "archive" | "archives" | "arquivo" | "arquivos" | "arquivados" => FolderRole::Archive,
         _ => return None,
     };
@@ -243,27 +236,19 @@ fn build_tree(
         .map(|f| {
             let is_inbox = f.path.eq_ignore_ascii_case("INBOX");
             // Paths shown without the personal prefix: `INBOX.Sent` reads `Sent`.
-            let visible = if !is_inbox && !prefix.is_empty() {
-                f.path.strip_prefix(prefix).unwrap_or(&f.path).to_string()
-            } else {
-                f.path.clone()
-            };
+            let visible =
+                if !is_inbox && !prefix.is_empty() { f.path.strip_prefix(prefix).unwrap_or(&f.path).to_string() } else { f.path.clone() };
             let segments: Vec<&str> = visible.split(delim).filter(|s| !s.is_empty()).collect();
             let decoded: Vec<String> = segments.iter().map(|s| utf7::decode(s)).collect();
             let parent = if segments.len() > 1 {
                 let parent_visible = segments[..segments.len() - 1].join(delim);
-                let parent_path =
-                    if prefix.is_empty() { parent_visible.clone() } else { format!("{prefix}{parent_visible}") };
+                let parent_path = if prefix.is_empty() { parent_visible.clone() } else { format!("{prefix}{parent_visible}") };
                 Some(if all.contains(&parent_path) { parent_path } else { parent_visible })
             } else {
                 None
             };
             let name = if is_inbox { "INBOX".to_string() } else { decoded.last().cloned().unwrap_or_default() };
-            let role = if is_inbox {
-                Some(FolderRole::Inbox)
-            } else {
-                f.special
-            };
+            let role = if is_inbox { Some(FolderRole::Inbox) } else { f.special };
             let (total, unread) = statuses.get(&f.path).copied().unwrap_or((0, 0));
             Folder {
                 subscribed: is_inbox || subscribed.contains(&f.path),
@@ -309,9 +294,7 @@ fn build_tree(
     for list in children.values_mut() {
         list.sort_by(|&a, &b| {
             let (fa, fb) = (&folders[a], &folders[b]);
-            role_rank(fa.role)
-                .cmp(&role_rank(fb.role))
-                .then_with(|| fa.name.to_lowercase().cmp(&fb.name.to_lowercase()))
+            role_rank(fa.role).cmp(&role_rank(fb.role)).then_with(|| fa.name.to_lowercase().cmp(&fb.name.to_lowercase()))
         });
     }
     let mut order = Vec::with_capacity(folders.len());

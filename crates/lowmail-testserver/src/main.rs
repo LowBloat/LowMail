@@ -25,9 +25,7 @@ fn parse_args() -> anyhow::Result<Config> {
             "--no-seed" => config.seed_demo_data = false,
             "--user" => {
                 let spec = value("--user")?;
-                let (email, password) = spec
-                    .split_once(':')
-                    .context("--user expects EMAIL:PASSWORD")?;
+                let (email, password) = spec.split_once(':').context("--user expects EMAIL:PASSWORD")?;
                 users.push((email.to_owned(), password.to_owned()));
             }
             "-h" | "--help" => {
@@ -46,10 +44,7 @@ fn parse_args() -> anyhow::Result<Config> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "lowmail_testserver=info".into()),
-        )
+        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "lowmail_testserver=info".into()))
         .init();
 
     let config = parse_args()?;
@@ -66,10 +61,7 @@ async fn main() -> anyhow::Result<()> {
         println!("  {email} / {password}");
     }
     if seeded {
-        println!(
-            "Demo data seeded for {}",
-            users.first().map_or("-", |u| u.0.as_str())
-        );
+        println!("Demo data seeded for {}", users.first().map_or("-", |u| u.0.as_str()));
     }
     println!("Press Ctrl+C to stop.");
 

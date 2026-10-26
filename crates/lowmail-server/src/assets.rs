@@ -75,7 +75,8 @@ pub fn serve(path: &str) -> Response<Body> {
     let mime = mime_guess::from_path(name).first_or_octet_stream();
     let mut resp = Response::new(Body::from(file.data.into_owned()));
     let headers = resp.headers_mut();
-    headers.insert(header::CONTENT_TYPE, HeaderValue::from_str(mime.as_ref()).unwrap_or(HeaderValue::from_static("application/octet-stream")));
+    headers
+        .insert(header::CONTENT_TYPE, HeaderValue::from_str(mime.as_ref()).unwrap_or(HeaderValue::from_static("application/octet-stream")));
     let cache = if name.starts_with("assets/") { "public, max-age=31536000, immutable" } else { "no-cache" };
     headers.insert(header::CACHE_CONTROL, HeaderValue::from_static(cache));
     if name.ends_with(".html") {

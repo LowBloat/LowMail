@@ -83,8 +83,7 @@ impl Session {
     }
 
     async fn run(&mut self) -> io::Result<()> {
-        self.reply(&format!("220 {HOSTNAME} ESMTP LowMail Test"))
-            .await?;
+        self.reply(&format!("220 {HOSTNAME} ESMTP LowMail Test")).await?;
         loop {
             let line = match self.reader.read_line(MAX_LINE).await {
                 Ok(Some(line)) => String::from_utf8_lossy(trim_eol(&line)).into_owned(),
@@ -126,13 +125,10 @@ impl Session {
                 "VRFY" => self.reply("252 2.5.0 Cannot VRFY user").await?,
                 "HELP" => self.reply("214 2.0.0 See RFC 5321").await?,
                 "QUIT" => {
-                    self.reply(&format!("221 2.0.0 {HOSTNAME} closing connection"))
-                        .await?;
+                    self.reply(&format!("221 2.0.0 {HOSTNAME} closing connection")).await?;
                     return Ok(());
                 }
-                "STARTTLS" | "BDAT" | "EXPN" | "ETRN" => {
-                    self.reply("502 5.5.1 Command not implemented").await?
-                }
+                "STARTTLS" | "BDAT" | "EXPN" | "ETRN" => self.reply("502 5.5.1 Command not implemented").await?,
                 _ => self.reply("500 5.5.2 Command not recognized").await?,
             }
         }
@@ -157,11 +153,7 @@ impl Session {
                 if response == "*" {
                     return self.reply("501 5.7.0 Authentication cancelled").await;
                 }
-                let response = if response == "=" {
-                    String::new()
-                } else {
-                    response
-                };
+                let response = if response == "=" { String::new() } else { response };
                 sasl::decode_plain(response.as_bytes())
             }
             "LOGIN" => {
@@ -180,15 +172,11 @@ impl Session {
                 if pass == "*" {
                     return self.reply("501 5.7.0 Authentication cancelled").await;
                 }
-                let decode = |s: &str| {
-                    sasl::decode_base64(s.as_bytes()).and_then(|b| String::from_utf8(b).ok())
-                };
+                let decode = |s: &str| sasl::decode_base64(s.as_bytes()).and_then(|b| String::from_utf8(b).ok());
                 decode(&user).zip(decode(&pass))
             }
             _ => {
-                return self
-                    .reply("504 5.5.4 Unrecognized authentication type")
-                    .await;
+                return self.reply("504 5.5.4 Unrecognized authentication type").await;
             }
         };
         match credentials.and_then(|(u, p)| self.store.authenticate(&u, &p)) {
@@ -197,10 +185,7 @@ impl Session {
                 self.user = Some(login);
                 self.reply("235 2.7.0 Authentication successful").await
             }
-            None => {
-                self.reply("535 5.7.8 Authentication credentials invalid")
-                    .await
-            }
+            None => self.reply("535 5.7.8 Authentication credentials invalid").await,
         }
     }
 
@@ -220,9 +205,7 @@ impl Session {
             .find(|(k, _)| k.eq_ignore_ascii_case("SIZE"))
             .and_then(|(_, v)| v.parse::<usize>().ok());
         if size.is_some_and(|s| s > MAX_SIZE) {
-            return self
-                .reply("552 5.3.4 Message size exceeds fixed maximum message size")
-                .await;
+            return self.reply("552 5.3.4 Message size exceeds fixed maximum message size").await;
         }
         self.from = Some(from);
         self.rcpts.clear();
@@ -274,9 +257,7 @@ impl Session {
         }
         if too_big {
             self.reset();
-            return self
-                .reply("552 5.3.4 Message size exceeds fixed maximum message size")
-                .await;
+            return self.reply("552 5.3.4 Message size exceeds fixed maximum message size").await;
         }
         let id = self.deliver(body);
         self.reset();
@@ -315,11 +296,7 @@ impl Session {
                 }
             }
             if !remote.is_empty() {
-                inner.outbound.push(OutboundMail {
-                    from: from.clone(),
-                    rcpt: remote,
-                    raw: body,
-                });
+                inner.outbound.push(OutboundMail { from: from.clone(), rcpt: remote, raw: body });
             }
         }
         self.store.notify();
@@ -330,10 +307,7 @@ impl Session {
 
 /// Cheap unique-ish component for queue ids.
 fn rand_id() -> u32 {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.subsec_nanos())
-        .unwrap_or_default();
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or_default();
     nanos ^ std::process::id()
 }
 
@@ -343,10 +317,7 @@ mod tests {
 
     #[test]
     fn paths() {
-        assert_eq!(
-            parse_path("FROM:<a@b.c> SIZE=100", "FROM:"),
-            Some("a@b.c".into())
-        );
+        assert_eq!(parse_path("FROM:<a@b.c> SIZE=100", "FROM:"), Some("a@b.c".into()));
         assert_eq!(parse_path("from: <>", "FROM:"), Some(String::new()));
         assert_eq!(parse_path("TO:x@y", "TO:"), Some("x@y".into()));
         assert_eq!(parse_path("TO", "TO:"), None);
