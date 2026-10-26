@@ -1,0 +1,43 @@
+# --- OS and editors ---
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+.idea/
+.vscode/*
+!.vscode/extensions.json
+# Local AI agent and tooling state
+.claude/
+.cursor/
+.agents/
+.codex/
+
+# --- Node / Bun ---
+node_modules/
+*.log
+
+# --- Vite ---
+/dist
+vite.config.ts.timestamp-*
+.vite/
+
+# --- Rust / Tauri ---
+/target/
+src-tauri/target/
+src-tauri/gen/
+**/*.rs.bk
+*.pdb
+
+# --- Data and secrets ---
+/data/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.tauri.key
+
+# --- Tests ---
+playwright-report/
+test-results/

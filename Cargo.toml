@@ -1,0 +1,47 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+default-members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "AGPL-3.0-only"
+authors = ["LowBloat"]
+repository = "https://github.com/LowBloat/LowMail"
+
+[workspace.dependencies]
+lowmail-core = { path = "crates/lowmail-core" }
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util", "fs", "signal"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["aws_lc_rs", "tls12"] }
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }
+rustls-native-certs = "0.8"
+webpki-roots = "1"
+futures = "0.3"
+async-imap = { version = "0.12", default-features = false, features = ["runtime-tokio"] }
+mail-parser = "1"
+mail-builder = "2"
+lettre = { version = "0.11", default-features = false, features = ["smtp-transport", "tokio1", "tokio1-rustls", "aws-lc-rs", "rustls-native-certs", "hostname", "builder"] }
+ammonia = "4"
+html2text = "0.16"
+linkify = "0.10"
+rusqlite = { version = "0.40", features = ["bundled"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+parking_lot = "0.12"
+base64 = "0.22"
+rand = "0.9"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "std", "ansi"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
