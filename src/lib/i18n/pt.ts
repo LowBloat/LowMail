@@ -312,6 +312,8 @@ export const pt: Dict = {
 	"compose.savedAt": "Rascunho salvo às {time}",
 	"compose.saved": "Rascunho salvo.",
 	"compose.sent": "Mensagem enviada.",
+	"compose.warning.sentCopyFailed": "A mensagem foi enviada, mas a cópia não pôde ser guardada em Enviados.",
+	"compose.warning.noSentFolder": "A mensagem foi enviada, mas não há pasta Enviados para guardar a cópia.",
 	"compose.noRecipients": "Adicione pelo menos um destinatário.",
 	"compose.invalidAddress": "Endereço inválido: {list}",
 	"compose.removeRecipient": "Remover {name}",

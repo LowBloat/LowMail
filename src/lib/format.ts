@@ -102,6 +102,21 @@ export function folderLabel(f: Pick<Folder, "role" | "name">): string {
 	return f.role ? t(`folder.${f.role}`) : f.name;
 }
 
+/** The folder with its parents, as the folder list shows them ("Caixa de entrada / spam"). */
+export function folderPathLabel(f: Folder, folders: Folder[]): string {
+	const names = [folderLabel(f)];
+	const seen = new Set([f.path]);
+	let parent = f.parent;
+	while (parent && !seen.has(parent)) {
+		seen.add(parent);
+		const p = folders.find((x) => x.path === parent);
+		if (!p) break;
+		names.unshift(folderLabel(p));
+		parent = p.parent;
+	}
+	return names.join(" / ");
+}
+
 export function roleIcon(role: FolderRole | null): string {
 	return role ?? "folder";
 }

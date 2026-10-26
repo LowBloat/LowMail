@@ -89,6 +89,7 @@ pub struct Server {
     smtp_addr: SocketAddr,
     sieve_addr: SocketAddr,
     tasks: Vec<JoinHandle<()>>,
+    hang_up: tokio::sync::watch::Sender<u64>,
 }
 
 /// Starts the IMAP, SMTP and ManageSieve listeners.
@@ -105,14 +106,15 @@ pub async fn start(config: Config) -> anyhow::Result<Server> {
     let smtp_addr = smtp.local_addr()?;
     let sieve_addr = sieve.local_addr()?;
 
+    let (hang_up, _) = tokio::sync::watch::channel(0);
     let tasks = vec![
-        tokio::spawn(accept_loop(imap, store.clone(), imap::handle)),
-        tokio::spawn(accept_loop(smtp, store.clone(), smtp::handle)),
-        tokio::spawn(accept_loop(sieve, store.clone(), sieve::handle)),
+        tokio::spawn(accept_loop(imap, store.clone(), hang_up.subscribe(), imap::handle)),
+        tokio::spawn(accept_loop(smtp, store.clone(), hang_up.subscribe(), smtp::handle)),
+        tokio::spawn(accept_loop(sieve, store.clone(), hang_up.subscribe(), sieve::handle)),
     ];
     tracing::info!(%imap_addr, %smtp_addr, %sieve_addr, "lowmail test server listening");
 
-    Ok(Server { store, imap_addr, smtp_addr, sieve_addr, tasks })
+    Ok(Server { store, imap_addr, smtp_addr, sieve_addr, tasks, hang_up })
 }
 
 async fn bind(ip: IpAddr, port: u16, what: &str) -> anyhow::Result<TcpListener> {
@@ -120,8 +122,9 @@ async fn bind(ip: IpAddr, port: u16, what: &str) -> anyhow::Result<TcpListener> 
 }
 
 /// Accepts connections until the task is aborted; aborting drops the
-/// [`JoinSet`], which aborts every connection task as well.
-async fn accept_loop<F, Fut>(listener: TcpListener, store: Arc<Store>, handler: F)
+/// [`JoinSet`], which aborts every connection task as well. A change on
+/// `hang_up` closes the open connections and keeps listening.
+async fn accept_loop<F, Fut>(listener: TcpListener, store: Arc<Store>, mut hang_up: tokio::sync::watch::Receiver<u64>, handler: F)
 where
     F: Fn(TcpStream, Arc<Store>) -> Fut,
     Fut: Future<Output = ()> + Send + 'static,
@@ -141,6 +144,7 @@ where
                 }
             },
             Some(_) = connections.join_next(), if !connections.is_empty() => {}
+            Ok(()) = hang_up.changed() => connections.abort_all(),
         }
     }
 }
@@ -195,6 +199,12 @@ impl Server {
             .account(user)
             .map(|account| account.scripts.iter().map(|s| (s.name.clone(), s.content.clone(), s.active)).collect())
             .unwrap_or_default()
+    }
+
+    /// Closes every open connection without a goodbye, as a server that
+    /// restarts or drops idle clients does. The listeners keep running.
+    pub fn drop_connections(&self) {
+        self.hang_up.send_modify(|n| *n += 1);
     }
 
     /// Stops all listeners and open connections.

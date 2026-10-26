@@ -5,7 +5,7 @@
 	import { mail } from "../../state/mail.svelte";
 	import { confirm, prompt } from "../../state/dialogs.svelte";
 	import { errorText, t } from "../../i18n/index.svelte";
-	import { folderLabel } from "../../format";
+	import { folderLabel, folderPathLabel } from "../../format";
 	import type { Folder } from "../../types";
 
 	async function run(work: () => Promise<unknown>) {
@@ -84,7 +84,7 @@
 							<option value="" disabled>{t("folders.moveInto")}</option>
 							{#if f.parent}<option value="">{t("folders.topLevel")}</option>{/if}
 							{#each parents(f) as p (p.path)}
-								{#if p.path !== f.parent}<option value={p.path}>{p.displayPath}</option>{/if}
+								{#if p.path !== f.parent}<option value={p.path}>{folderPathLabel(p, mail.folders)}</option>{/if}
 							{/each}
 						</select>
 						<button type="button" class="lm-link lm-link--danger" onclick={() => remove(f)}>{t("action.delete")}</button>

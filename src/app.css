@@ -212,3 +212,9 @@ kbd,
 .lm-ghost-btn[aria-expanded="true"] {
 	background: var(--lm-row-hover);
 }
+
+/* Server details in toasts can be long words (addresses, URLs). */
+.ca-toaster {
+	max-width: calc(100vw - 32px);
+	overflow-wrap: anywhere;
+}

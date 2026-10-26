@@ -6,7 +6,7 @@
 	import { mail } from "../../state/mail.svelte";
 	import { confirm } from "../../state/dialogs.svelte";
 	import { t } from "../../i18n/index.svelte";
-	import { folderLabel } from "../../format";
+	import { folderPathLabel } from "../../format";
 	import type { FilterAction, FilterCondition, FilterField, FilterOp, FilterRule } from "../../types";
 
 	let editing = $state<FilterRule | null>(null);
@@ -24,7 +24,7 @@
 	const actionOptions = $derived(
 		["move", "copy", "markRead", "flag", "forward", "discard", "reject"].map((value) => ({ value, label: t(`filters.action.${value}`) })),
 	);
-	const folderOptions = $derived(mail.folders.filter((f) => f.selectable).map((f) => ({ value: f.path, label: f.role ? folderLabel(f) : f.displayPath })));
+	const folderOptions = $derived(mail.folders.filter((f) => f.selectable).map((f) => ({ value: f.path, label: folderPathLabel(f, mail.folders) })));
 
 	/** A user folder, else Archive, else the inbox. */
 	function defaultFolder() {
@@ -33,7 +33,7 @@
 
 	function folderName(path: string) {
 		const f = mail.folders.find((x) => x.path === path);
-		return f ? (f.role ? folderLabel(f) : f.displayPath) : path;
+		return f ? folderPathLabel(f, mail.folders) : path;
 	}
 
 	function newRule(): FilterRule {

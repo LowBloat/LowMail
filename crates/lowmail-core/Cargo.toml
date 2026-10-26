@@ -33,6 +33,7 @@ parking_lot.workspace = true
 base64.workspace = true
 rand.workspace = true
 tracing.workspace = true
+hickory-resolver.workspace = true
 
 [dev-dependencies]
 lowmail-testserver = { path = "../lowmail-testserver" }

@@ -329,7 +329,7 @@ class ComposeState {
 			// An autosave in flight decides which saved draft send removes.
 			await this.settle();
 			const res = await call<SendResult>("compose.send", { draft: $state.snapshot(d), saveCopy: app.settings.saveSent });
-			for (const w of res.warnings ?? []) toast.warning(w, { duration: 10_000 });
+			for (const w of res.warnings ?? []) toast.warning(t(`compose.warning.${w}`), { duration: 10_000 });
 			toast.success(t("compose.sent"));
 			this.reset(false);
 			void mail.refreshCounts();

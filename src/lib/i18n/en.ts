@@ -300,6 +300,8 @@ export const en: Dict = {
 	"compose.savedAt": "Draft saved at {time}",
 	"compose.saved": "Draft saved.",
 	"compose.sent": "Message sent.",
+	"compose.warning.sentCopyFailed": "The message was sent, but its copy could not be saved in Sent.",
+	"compose.warning.noSentFolder": "The message was sent, but there is no Sent folder for its copy.",
 	"compose.noRecipients": "Add at least one recipient.",
 	"compose.invalidAddress": "Invalid address: {list}",
 	"compose.removeRecipient": "Remove {name}",

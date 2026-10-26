@@ -28,7 +28,7 @@ macro_rules! with_conn {
         let mut attempt = 0;
         loop {
             attempt += 1;
-            let mut pooled = $pool.get().await?;
+            let mut pooled = $pool.get_checked(!$retry).await?;
             let result = {
                 let $conn = pooled.conn();
                 match tokio::time::timeout(crate::imap::COMMAND_TIMEOUT, async { $body }).await {
@@ -736,6 +736,35 @@ impl MailClient {
         }
     }
 
+    /// Appends a message to `folder` and returns its UID when known. A
+    /// connection the server dropped is retried once on a new one, after
+    /// checking by Message-ID that the first try did not land, so the
+    /// message is never stored twice.
+    async fn append_unique(&self, folder: &str, flags: &[&str], raw: &[u8], message_id: &str) -> Result<Option<u32>> {
+        let mut retry = false;
+        loop {
+            let result = with_conn!(self.pool, false, |conn| {
+                if retry {
+                    conn.select(folder).await?;
+                    if let Some(uid) = conn.find_by_message_id(message_id).await? {
+                        return Ok(Some(uid));
+                    }
+                }
+                match conn.append(folder, flags, raw).await? {
+                    Some((_, uid)) => Ok(Some(uid)),
+                    None => {
+                        conn.select(folder).await?;
+                        conn.find_by_message_id(message_id).await
+                    }
+                }
+            });
+            match result {
+                Err(e) if e.is_connection_error() && !retry => retry = true,
+                other => return other,
+            }
+        }
+    }
+
     /// Saves the draft in Drafts (replacing the previous save).
     pub async fn save_draft(&self, mut draft: Draft) -> Result<Draft> {
         let (from, identity) = self.sender(&draft)?;
@@ -744,17 +773,7 @@ impl MailClient {
         let built = compose::build(&draft, &from, &files, true, Some(&meta))?;
         let drafts = self.ensure_role(FolderRole::Drafts).await?;
         let (raw, message_id) = (built.raw, built.message_id.clone());
-        let d = drafts.clone();
-        let uid = with_conn!(self.pool, false, |conn| {
-            let appended = conn.append(&d, &["\\Draft", "\\Seen"], &raw).await?;
-            match appended {
-                Some((_, uid)) => Ok(Some(uid)),
-                None => {
-                    conn.select(&d).await?;
-                    conn.find_by_message_id(&message_id).await
-                }
-            }
-        })?;
+        let uid = self.append_unique(&drafts, &["\\Draft", "\\Seen"], &raw, &message_id).await?;
         if let Some(old) = draft.draft_ref.take()
             && !(old.folder == drafts && Some(old.uid) == uid)
         {
@@ -803,20 +822,20 @@ impl MailClient {
         if save_copy {
             let copy = compose::build(&draft, &from, &files, true, None)?;
             match self.ensure_role(FolderRole::Sent).await {
-                Ok(sent) => {
-                    let s = sent.clone();
-                    match with_conn!(self.pool, false, |conn| conn.append(&s, &["\\Seen"], &copy.raw).await) {
-                        Ok(_) => {
-                            saved = true;
-                            self.emit(MailEvent::FolderChanged { folder: sent });
-                        }
-                        Err(e) => warnings.push(format!(
-                            "The message was sent, but the copy in Sent could not be saved: {}",
-                            e.detail.unwrap_or(e.message)
-                        )),
+                Ok(sent) => match self.append_unique(&sent, &["\\Seen"], &copy.raw, &copy.message_id).await {
+                    Ok(_) => {
+                        saved = true;
+                        self.emit(MailEvent::FolderChanged { folder: sent });
                     }
+                    Err(e) => {
+                        tracing::warn!("copy in Sent not saved: {}", e.detail.unwrap_or(e.message));
+                        warnings.push("sentCopyFailed".into());
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!("no Sent folder: {}", e.detail.unwrap_or(e.message));
+                    warnings.push("noSentFolder".into());
                 }
-                Err(e) => warnings.push(format!("The message was sent, but there is no Sent folder: {}", e.message)),
             }
         }
         if let Some(source) = &draft.source {
@@ -863,12 +882,21 @@ impl MailClient {
 
     // ---- filters -------------------------------------------------------
 
+    // Each call opens its own ManageSieve connection, and reading or writing
+    // the same script twice is harmless, so a dropped connection is retried.
+
     pub async fn filters(&self) -> Result<sieve::FilterState> {
-        sieve::load(self.account(), self.password()).await
+        match sieve::load(self.account(), self.password()).await {
+            Err(e) if e.is_connection_error() => sieve::load(self.account(), self.password()).await,
+            other => other,
+        }
     }
 
     pub async fn save_filters(&self, filters: &sieve::Filters) -> Result<()> {
-        sieve::save(self.account(), self.password(), filters).await
+        match sieve::save(self.account(), self.password(), filters).await {
+            Err(e) if e.is_connection_error() => sieve::save(self.account(), self.password(), filters).await,
+            other => other,
+        }
     }
 }
 

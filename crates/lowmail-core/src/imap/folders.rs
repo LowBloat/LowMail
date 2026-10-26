@@ -112,6 +112,11 @@ impl Conn {
     }
 
     pub async fn status_counts(&mut self, path: &str) -> Result<(u32, u32)> {
+        // Dovecot answers STATUS on the selected folder from this session's
+        // view, which misses what other connections added until a NOOP.
+        if self.selected.as_ref().is_some_and(|s| s.path == path) {
+            self.select(path).await?;
+        }
         let mut counts = None;
         self.raw_each(&format!("STATUS {} (MESSAGES UNSEEN)", quote(path)), |resp| {
             if let Response::MailboxData(MailboxDatum::Status { status, .. }) = resp {

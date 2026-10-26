@@ -221,14 +221,15 @@
 		{#if f.canHaveChildren}
 			<DropdownMenuItem onclick={() => newFolder(f)}>{t("folders.newSubShort")}</DropdownMenuItem>
 		{/if}
-		{#if f.role !== "inbox"}
+		{#if !f.role}
 			<DropdownMenuItem onclick={() => rename(f)}>{t("folders.rename")}</DropdownMenuItem>
 		{/if}
 		{#if f.role === "trash" || f.role === "junk"}
 			<DropdownMenuSeparator />
 			<DropdownMenuItem variant="destructive" onclick={() => empty(f)} disabled={f.total === 0}>{t("folders.empty.action")}</DropdownMenuItem>
 		{/if}
-		{#if f.role !== "inbox"}
+		<!-- Special folders stay: the settings screen protects them the same way. -->
+		{#if !f.role}
 			<DropdownMenuSeparator />
 			<DropdownMenuItem variant="destructive" onclick={() => remove(f)}>{t("folders.delete.action")}</DropdownMenuItem>
 		{/if}

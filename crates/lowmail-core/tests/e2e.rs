@@ -395,3 +395,30 @@ async fn reused_connection_sees_new_messages() {
     one.empty_folder("Trash").await.unwrap();
     assert_eq!(one.list("Trash", 0, 10, &Sort::default(), &Filter::default()).await.unwrap().total, 0);
 }
+
+/// MXRoute dropped an idle pooled connection and the copy in Sent was lost:
+/// saving must reconnect, and never store the message twice.
+#[tokio::test]
+async fn saves_survive_dropped_connections() {
+    let (server, c) = setup().await;
+    c.list("Sent", 0, 1, &Sort::default(), &Filter::default()).await.unwrap();
+    c.list("Drafts", 0, 1, &Sort::default(), &Filter::default()).await.unwrap();
+
+    server.drop_connections();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let mut draft = c.prepare(ComposeMode::New, None, true, &QuoteStyle::default()).await.unwrap();
+    draft.to = vec![Address::new(None, "someone@example.com")];
+    draft.subject = "Depois da queda".into();
+    draft.html = Some("<p>Oi</p>".into());
+    let saved = c.save_draft(draft).await.unwrap();
+    assert!(saved.draft_ref.is_some());
+    let drafts = c.list("Drafts", 0, 50, &Sort::default(), &Filter::default()).await.unwrap();
+    assert_eq!(drafts.items.iter().filter(|m| m.subject == "Depois da queda").count(), 1);
+
+    server.drop_connections();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let result = c.send(saved, true).await.unwrap();
+    assert!(result.saved, "{:?}", result.warnings);
+    let sent = c.list("Sent", 0, 50, &Sort::default(), &Filter::default()).await.unwrap();
+    assert_eq!(sent.items.iter().filter(|m| m.subject == "Depois da queda").count(), 1);
+}

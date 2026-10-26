@@ -29,6 +29,9 @@ pub type Session = async_imap::Session<MailStream>;
 pub const COMMAND_TIMEOUT: Duration = Duration::from_secs(120);
 /// Idle pooled connections older than this are checked with NOOP before use.
 const STALE_AFTER: Duration = Duration::from_secs(60);
+/// The same for operations that must not run twice, so a connection the
+/// server dropped is found before the command instead of in the middle.
+const STALE_AFTER_CAREFUL: Duration = Duration::from_secs(5);
 /// Pooled connections idle for longer than this are closed.
 const MAX_IDLE: Duration = Duration::from_secs(15 * 60);
 
@@ -353,6 +356,13 @@ impl Pool {
     }
 
     pub async fn get(self: &Arc<Self>) -> Result<Pooled> {
+        self.get_checked(false).await
+    }
+
+    /// A connection; `careful` checks it sooner, for operations that cannot
+    /// simply be retried on another connection.
+    pub async fn get_checked(self: &Arc<Self>, careful: bool) -> Result<Pooled> {
+        let stale_after = if careful { STALE_AFTER_CAREFUL } else { STALE_AFTER };
         let permit = self.permits.clone().acquire_owned().await.map_err(|_| Error::internal("Pool closed."))?;
         loop {
             let candidate = self.idle.lock().pop();
@@ -362,7 +372,7 @@ impl Pool {
                 tokio::spawn(conn.logout());
                 continue;
             }
-            if age > STALE_AFTER {
+            if age > stale_after {
                 match tokio::time::timeout(Duration::from_secs(10), conn.session.noop()).await {
                     Ok(Ok(())) => conn.drain_unsolicited(),
                     _ => continue,

@@ -27,7 +27,8 @@
 	let busy = $state(false);
 	let error = $state("");
 	let detail = $state("");
-	let discovered = $state(false);
+	/** The address the servers were last discovered for. */
+	let discoveredFor = $state("");
 	const editing = !!initial;
 
 	const securityOptions = $derived([
@@ -56,7 +57,7 @@
 		form.smtp = res.smtp;
 		form.sieve = res.sieve ?? form.sieve;
 		sieveOn = res.sieve !== null;
-		discovered = true;
+		discoveredFor = form.email.trim();
 	}
 
 	function close() {
@@ -80,7 +81,7 @@
 		try {
 			form.email = email;
 			if (!form.username.trim()) form.username = email;
-			if (!form.imap.host || (!advanced && !discovered)) await discover();
+			if (!form.imap.host || (!advanced && discoveredFor !== email)) await discover();
 			const toSave: AccountConfig = { ...$state.snapshot(form), sieve: sieveOn ? $state.snapshot(form.sieve) : null };
 			if (toSave.sieve && !toSave.sieve.host) toSave.sieve.host = toSave.imap.host;
 			await desktop.testAccount(toSave, password || null);
