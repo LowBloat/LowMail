@@ -160,6 +160,20 @@ pub async fn dispatch(client: &Arc<MailClient>, method: &str, p: Value) -> Resul
             let a: A = params(p)?;
             ok(client.message(&a.folder, a.uid, a.allow_remote, a.mark_seen).await?)
         }
+        "messages.thread" => {
+            let a: MessageArg = params(p)?;
+            ok(client.thread(&a.folder, a.uid).await?)
+        }
+        "messages.attachmentData" => {
+            #[derive(Deserialize)]
+            struct A {
+                folder: String,
+                uid: u32,
+                part: String,
+            }
+            let a: A = params(p)?;
+            ok(json!({ "url": client.attachment_data(&a.folder, a.uid, &a.part).await? }))
+        }
         "messages.source" => {
             let a: MessageArg = params(p)?;
             let raw = client.raw(&a.folder, a.uid).await?;

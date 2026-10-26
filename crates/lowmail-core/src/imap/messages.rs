@@ -183,6 +183,30 @@ impl Conn {
         Ok(())
     }
 
+    /// UIDs in the selected folder of messages with one of `ids` as their
+    /// Message-ID or among their References (one conversation).
+    pub async fn related_uids(&mut self, ids: &[String]) -> Result<Vec<u32>> {
+        let keys: Vec<String> = ids
+            .iter()
+            .take(20)
+            .map(|id| {
+                let id = super::search::astring(&format!("<{}>", id.trim_matches(|c| c == '<' || c == '>')), false);
+                format!("OR HEADER Message-ID {id} HEADER References {id}")
+            })
+            .collect();
+        let Some((first, rest)) = keys.split_first() else { return Ok(Vec::new()) };
+        // OR is binary: OR (OR a b) c ...
+        let criteria = rest.iter().fold(first.clone(), |acc, k| format!("OR ({acc}) ({k})"));
+        let mut uids = Vec::new();
+        self.raw_each(&format!("UID SEARCH UNDELETED ({criteria})"), |resp| {
+            if let Response::MailboxData(MailboxDatum::Search(list)) = resp {
+                uids.extend_from_slice(list);
+            }
+        })
+        .await?;
+        Ok(uids)
+    }
+
     /// UID of the message with `message_id` in the selected folder.
     pub async fn find_by_message_id(&mut self, message_id: &str) -> Result<Option<u32>> {
         let id = format!("<{}>", message_id.trim_matches(|c| c == '<' || c == '>'));

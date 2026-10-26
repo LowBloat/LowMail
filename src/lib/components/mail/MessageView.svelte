@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Avatar, Button, Dialog, DropdownMenu, DropdownMenuItem, DropdownMenuSeparator, EmptyState, IconButton, Skeleton, Tooltip, colorScheme, toast } from "@codeatlasdev/ui";
+	import { Avatar, Button, Dialog, DropdownMenu, DropdownMenuItem, DropdownMenuSeparator, EmptyState, IconButton, Lightbox, Skeleton, Tooltip, colorScheme, toast } from "@codeatlasdev/ui";
 	import {
 		Archive,
 		ArrowLeft,
@@ -18,6 +18,7 @@
 		Mail,
 		MailCheck,
 		MailOpen,
+		MessagesSquare,
 		OctagonAlert,
 		Reply,
 		ReplyAll,
@@ -29,7 +30,7 @@
 	import { keyOf, mail } from "../../state/mail.svelte";
 	import { errorText, t } from "../../i18n/index.svelte";
 	import { displayName, formatAddress, fullDate, initials, listDate, size } from "../../format";
-	import type { Address, AttachmentInfo } from "../../types";
+	import type { Address, AttachmentInfo, MessageSummary } from "../../types";
 	import MessageFrame from "./MessageFrame.svelte";
 	import { printMessage } from "../../print";
 
@@ -60,6 +61,49 @@
 		showHeaders = false;
 		receiptDismissed = false;
 	});
+
+	// The conversation of the open message, loaded after the message itself.
+	let thread = $state<MessageSummary[]>([]);
+	let threadOpen = $state(false);
+	let threadKey = "";
+	$effect(() => {
+		const msg = m;
+		const key = msg ? keyOf(msg.folder, msg.uid) : "";
+		if (!msg || key === threadKey) return;
+		const keepOpen = thread.some((t) => keyOf(t.folder, t.uid) === key);
+		threadKey = key;
+		if (!keepOpen) {
+			thread = [];
+			threadOpen = false;
+		}
+		void call<MessageSummary[]>("messages.thread", { folder: msg.folder, uid: msg.uid })
+			.then((list) => {
+				if (threadKey === key) thread = list;
+			})
+			.catch(() => {});
+	});
+
+	// Previews of image attachments, loaded on demand.
+	const images = $derived(files.filter((a) => a.contentType.startsWith("image/") && a.contentType !== "image/svg+xml" && a.size <= 8 * 1024 * 1024));
+	let previews = $state<Record<string, string>>({});
+	let lightbox = $state(-1);
+	$effect(() => {
+		const msg = m;
+		previews = {};
+		if (!msg) return;
+		for (const a of images) {
+			void call<{ url: string }>("messages.attachmentData", { folder: msg.folder, uid: msg.uid, part: a.part })
+				.then((r) => {
+					if (mail.message === msg) previews = { ...previews, [a.part]: r.url };
+				})
+				.catch(() => {});
+		}
+	});
+	const lightboxItems = $derived(images.filter((a) => previews[a.part]).map((a) => ({ src: previews[a.part], alt: a.filename, caption: a.filename })));
+
+	function openFromThread(s: MessageSummary) {
+		void mail.openMessage(keyOf(s.folder, s.uid));
+	}
 
 	function fileIcon(a: AttachmentInfo) {
 		const ct = a.contentType;
@@ -273,6 +317,30 @@
 				</table>
 			{/if}
 
+			{#if thread.length > 1}
+				<section class="lm-thread" aria-label={t("thread.title")}>
+					<button type="button" class="lm-thread__toggle" aria-expanded={threadOpen} onclick={() => (threadOpen = !threadOpen)}>
+						<MessagesSquare size={15} />
+						{t("thread.count", { n: thread.length })}
+						<span class="lm-hint">{threadOpen ? "▴" : "▾"}</span>
+					</button>
+					{#if threadOpen}
+						<ol class="lm-thread__list">
+							{#each thread as s (keyOf(s.folder, s.uid))}
+								{@const current = s.folder === m.folder && s.uid === m.uid}
+								<li>
+									<button type="button" class="lm-thread__item" class:lm-thread__item--current={current} class:lm-thread__item--unread={!s.flags.seen} aria-current={current ? "true" : undefined} onclick={() => openFromThread(s)}>
+										<span class="lm-thread__who lm-ellipsis">{app.isMine(s.from[0]?.email ?? "") ? t("message.me") : displayName(s.from[0])}</span>
+										<span class="lm-thread__subject lm-ellipsis">{s.subject || t("message.noSubject")}</span>
+										<span class="lm-hint lm-thread__date">{listDate(s.date)}</span>
+									</button>
+								</li>
+							{/each}
+						</ol>
+					{/if}
+				</section>
+			{/if}
+
 			{#if m.html}
 				{#key `${m.folder}:${m.uid}:${mail.allowRemote}`}
 					<MessageFrame html={m.html} remote={mail.allowRemote} title={m.subject || t("message.noSubject")} dark={colorScheme.isDark} />
@@ -286,6 +354,17 @@
 					<div class="lm-files__head">
 						<span>{t("message.attachmentsCount", { n: files.length })} · {size(totalFiles)}</span>
 					</div>
+					{#if images.length}
+						<div class="lm-thumbs">
+							{#each images as a (a.part)}
+								{#if previews[a.part]}
+									<button type="button" class="lm-thumb" title={a.filename} onclick={() => (lightbox = lightboxItems.findIndex((i) => i.alt === a.filename))}>
+										<img src={previews[a.part]} alt={a.filename} loading="lazy" />
+									</button>
+								{/if}
+							{/each}
+						</div>
+					{/if}
 					<ul class="lm-files__list">
 						{#each files as a (a.part)}
 							{@const Icon = fileIcon(a)}
@@ -309,6 +388,10 @@
 		</div>
 	{/if}
 </div>
+
+{#if lightbox >= 0 && lightboxItems.length}
+	<Lightbox open items={lightboxItems} index={lightbox} onclose={() => (lightbox = -1)} />
+{/if}
 
 <Dialog open={source !== null} title={t("action.viewSource")} size="xl" onOpenChange={(o) => !o && (source = null)}>
 	<pre class="lm-source">{source}</pre>
@@ -478,6 +561,81 @@
 	}
 	.lm-reader__nobody {
 		padding: 0 22px;
+	}
+	.lm-thread {
+		margin: 0 22px 12px;
+		border: 1px solid var(--ca-outline-subtle);
+	}
+	.lm-thread__toggle {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 12px;
+		border: 0;
+		background: var(--ca-surface-sunken);
+		color: var(--ca-text-primary);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 600;
+		cursor: pointer;
+		text-align: left;
+	}
+	.lm-thread__list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.lm-thread__item {
+		width: 100%;
+		display: grid;
+		grid-template-columns: minmax(80px, 160px) 1fr auto;
+		gap: 10px;
+		align-items: center;
+		padding: 7px 12px;
+		border: 0;
+		border-top: 1px solid var(--ca-outline-subtle);
+		background: transparent;
+		color: var(--ca-text-secondary);
+		font: inherit;
+		font-size: 13px;
+		text-align: left;
+		cursor: pointer;
+	}
+	.lm-thread__item:hover {
+		background: var(--lm-row-hover);
+	}
+	.lm-thread__item--current {
+		background: var(--lm-row-open);
+		color: var(--ca-text-primary);
+	}
+	.lm-thread__item--unread {
+		color: var(--ca-text-primary);
+		font-weight: 650;
+	}
+	.lm-thread__date {
+		white-space: nowrap;
+	}
+	.lm-thumbs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-bottom: 10px;
+	}
+	.lm-thumb {
+		width: 120px;
+		height: 90px;
+		padding: 0;
+		border: 1px solid var(--ca-outline-default);
+		background: var(--ca-surface-sunken);
+		cursor: zoom-in;
+		overflow: hidden;
+	}
+	.lm-thumb img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
 	}
 	.lm-files {
 		margin: 8px 22px 28px;

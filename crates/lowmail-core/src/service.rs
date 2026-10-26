@@ -437,6 +437,62 @@ impl MailClient {
         Ok(message)
     }
 
+    /// The conversation of a message: messages of the same folder and of Sent
+    /// linked by Message-ID and References, oldest first. Empty when the
+    /// message stands alone.
+    pub async fn thread(&self, folder: &str, uid: u32) -> Result<Vec<MessageSummary>> {
+        let raw = self.raw(folder, uid).await?;
+        let head = mime::summary_from_headers(&raw, folder, uid, 0, None, Flags::default(), false);
+        let mut ids: Vec<String> = head.references.clone();
+        ids.extend(head.in_reply_to.clone());
+        ids.extend(head.message_id.clone());
+        ids.dedup();
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut folders = vec![folder.to_string()];
+        if let Some(sent) = self.role_path(FolderRole::Sent).await?
+            && sent != folder
+        {
+            folders.push(sent);
+        }
+        if let Some(inbox) = Some("INBOX".to_string()).filter(|i| !folders.contains(i)) {
+            folders.push(inbox);
+        }
+        let mut found: Vec<MessageSummary> = Vec::new();
+        for f in folders {
+            let ids = ids.clone();
+            let items = with_conn!(self.pool, true, |conn| {
+                let sel = conn.select(&f).await?;
+                if sel.exists == 0 {
+                    return Ok(Vec::new());
+                }
+                let uids = conn.related_uids(&ids).await?;
+                conn.fetch_summaries(&f, &uids).await
+            });
+            if let Ok(items) = items {
+                found.extend(items);
+            }
+        }
+        // The same message can be in two folders (a copy in Sent and INBOX).
+        let mut seen = std::collections::HashSet::new();
+        found.retain(|m| m.message_id.as_ref().map(|id| seen.insert(id.clone())).unwrap_or(true));
+        found.sort_by_key(|m| m.date);
+        Ok(if found.len() > 1 { found } else { Vec::new() })
+    }
+
+    /// An image attachment as a `data:` URL for previews (at most 8 MB).
+    pub async fn attachment_data(&self, folder: &str, uid: u32, part: &str) -> Result<String> {
+        let (_, ct, bytes) = self.attachment(folder, uid, part).await?;
+        if !ct.starts_with("image/") || ct == "image/svg+xml" {
+            return Err(Error::invalid("Only images have a preview."));
+        }
+        if bytes.len() > 8 * 1024 * 1024 {
+            return Err(Error::new(ErrorKind::TooLarge, "The image is too large for a preview."));
+        }
+        Ok(format!("data:{ct};base64,{}", base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes)))
+    }
+
     pub async fn attachment(&self, folder: &str, uid: u32, part: &str) -> Result<(String, String, Vec<u8>)> {
         let raw = self.raw(folder, uid).await?;
         mime::extract_part(&raw, part)

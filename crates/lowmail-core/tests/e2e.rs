@@ -319,3 +319,32 @@ async fn rpc_and_events() {
     assert_eq!(event[0].subject, "Novidade");
     c.close().await;
 }
+
+#[tokio::test]
+async fn conversation_and_image_previews() {
+    let (_server, c) = setup().await;
+    let page = c.list("INBOX", 0, 500, &Sort::default(), &Filter::default()).await.unwrap();
+    // The seeded reply thread: some message with References.
+    let reply = page.items.iter().find(|m| !m.references.is_empty()).expect("a reply in the seed");
+    let thread = c.thread("INBOX", reply.uid).await.unwrap();
+    assert!(thread.len() >= 2, "conversation found: {}", thread.len());
+    assert!(thread.windows(2).all(|w| w[0].date <= w[1].date), "oldest first");
+    // A message without links has no conversation.
+    let alone = page.items.iter().find(|m| m.references.is_empty() && m.in_reply_to.is_none()).unwrap();
+    let t = c.thread("INBOX", alone.uid).await.unwrap();
+    assert!(t.is_empty() || t.iter().any(|m| m.uid == alone.uid));
+
+    let mut previewed = false;
+    for m in page.items.iter().filter(|m| m.has_attachments) {
+        let full = c.message("INBOX", m.uid, false, false).await.unwrap();
+        for a in full.attachments.iter().filter(|a| a.content_type.starts_with("image/") && a.content_type != "image/svg+xml") {
+            let url = c.attachment_data("INBOX", m.uid, &a.part).await.unwrap();
+            assert!(url.starts_with("data:image/"));
+            previewed = true;
+        }
+        if let Some(pdf) = full.attachments.iter().find(|a| a.content_type == "application/pdf") {
+            assert!(c.attachment_data("INBOX", m.uid, &pdf.part).await.is_err());
+        }
+    }
+    assert!(previewed, "the seed has image attachments");
+}
