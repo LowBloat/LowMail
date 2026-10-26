@@ -172,30 +172,30 @@
 		display: flex;
 		align-items: stretch;
 		flex-shrink: 0;
-		height: 34px;
+		height: var(--lm-titlebar-h);
 		border-bottom: 1px solid var(--ca-outline-subtle);
 		background: var(--ca-surface-sunken);
 		color: var(--ca-text-secondary);
-		font-size: 13px;
+		font-size: var(--ca-font-size-button);
 		user-select: none;
 	}
 	/* Room for the native traffic lights drawn over the bar. */
 	.lm-titlebar--mac {
-		padding-left: 78px;
+		padding-left: var(--lm-mac-lights-w);
 	}
 	.lm-titlebar__logo {
-		width: 16px;
-		height: 16px;
+		width: var(--lm-icon);
+		height: var(--lm-icon);
 		align-self: center;
-		margin: 0 10px 0 12px;
+		margin: 0 var(--ca-space-3-5) 0 var(--ca-space-4);
 	}
 	.lm-titlebar__menus {
 		display: flex;
 		align-items: stretch;
 	}
 	.lm-titlebar__menu {
-		margin: 4px 0;
-		padding: 0 10px;
+		margin: var(--ca-space-1-5) 0;
+		padding: 0 var(--ca-space-3-5);
 		border: 0;
 		background: transparent;
 		color: inherit;
@@ -215,7 +215,7 @@
 		transform: translateX(-50%);
 		display: flex;
 		align-items: center;
-		gap: 6px;
+		gap: var(--ca-space-2);
 		max-width: 45%;
 		min-width: 0;
 		pointer-events: none;
@@ -243,7 +243,7 @@
 		display: flex;
 	}
 	.lm-titlebar__button {
-		width: 46px;
+		width: var(--lm-caption-button-w);
 		display: grid;
 		place-items: center;
 		border: 0;
@@ -258,12 +258,12 @@
 	}
 	.lm-titlebar__button--close:hover,
 	.lm-titlebar__button--close:focus-visible {
-		background: #c42b1c;
-		color: #fff;
+		background: var(--ca-semantic-error-fill);
+		color: var(--ca-semantic-error-contrast);
 	}
 	.lm-titlebar__button svg {
-		width: 10px;
-		height: 10px;
+		width: var(--lm-glyph);
+		height: var(--lm-glyph);
 		fill: none;
 		stroke: currentColor;
 		stroke-width: 1;
@@ -272,12 +272,12 @@
 	.lm-titlebar__item {
 		display: flex;
 		align-items: center;
-		gap: 24px;
+		gap: var(--ca-space-8);
 		width: 100%;
 	}
 	.lm-titlebar__key {
 		margin-left: auto;
-		font-size: 11px;
+		font-size: var(--ca-font-size-caption);
 		color: var(--ca-text-tertiary, var(--ca-text-secondary));
 	}
 </style>

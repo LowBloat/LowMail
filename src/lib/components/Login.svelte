@@ -67,8 +67,8 @@
 		max-width: 22rem;
 	}
 	.lm-login-panel__title {
-		font-size: 28px;
+		font-size: var(--ca-font-size-h2);
 		font-weight: 750;
-		margin: 0 0 8px;
+		margin: 0 0 var(--ca-space-2-5);
 	}
 </style>

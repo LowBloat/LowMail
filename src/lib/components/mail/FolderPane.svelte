@@ -247,8 +247,8 @@
 		background: transparent;
 	}
 	.lm-folders__tool {
-		width: 28px;
-		height: 28px;
+		width: var(--lm-tool);
+		height: var(--lm-tool);
 		display: grid;
 		place-items: center;
 		border: 0;
@@ -266,14 +266,14 @@
 		overflow: auto;
 		list-style: none;
 		margin: 0;
-		padding: 6px 0;
+		padding: var(--ca-space-2) 0;
 	}
 	.lm-folder {
 		display: flex;
 		align-items: center;
-		gap: 7px;
-		height: 32px;
-		padding-right: 10px;
+		gap: var(--ca-space-2-5);
+		height: var(--lm-nav-row);
+		padding-right: var(--ca-space-3-5);
 		color: var(--ca-text-secondary);
 		cursor: pointer;
 		user-select: none;
@@ -286,7 +286,7 @@
 		background: var(--ca-surface-base);
 		color: var(--ca-text-primary);
 		font-weight: 600;
-		box-shadow: inset 3px 0 0 var(--lm-signal);
+		box-shadow: inset var(--lm-accent) 0 0 var(--lm-signal);
 	}
 	.lm-folder--drop {
 		background: var(--lm-row-open);
@@ -297,8 +297,8 @@
 		opacity: 0.75;
 	}
 	.lm-folder__twisty {
-		width: 16px;
-		height: 16px;
+		width: var(--lm-icon);
+		height: var(--lm-icon);
 		flex-shrink: 0;
 		display: grid;
 		place-items: center;
@@ -312,7 +312,7 @@
 		flex: 1;
 	}
 	.lm-folder__count {
-		font-size: 12px;
+		font-size: var(--ca-font-size-body2);
 		font-variant-numeric: tabular-nums;
 		color: var(--ca-text-secondary);
 	}
@@ -323,8 +323,8 @@
 	.lm-folders__quota {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
-		padding: 10px 12px 12px;
+		gap: var(--ca-space-1-5);
+		padding: var(--ca-space-3-5) var(--ca-space-4) var(--ca-space-4);
 		border-top: 1px solid var(--ca-outline-subtle);
 	}
 	:global(.lm-spin) {

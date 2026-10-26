@@ -144,7 +144,7 @@
 				<div class="lm-about">
 					<img src="./favicon.svg" alt="" width="56" height="56" />
 					<div>
-						<p class="lm-about__name">LowMail {app.version}</p>
+						<p class="lm-about__name">{t("about.name", { version: app.version })}</p>
 						<p class="lm-muted">{t("about.text")}</p>
 						<p class="lm-hint">{t("about.account", { email: app.account?.email ?? "" })}</p>
 						{#if app.account?.capabilities.length}
@@ -153,7 +153,7 @@
 								<p class="lm-hint lm-caps">{app.account.capabilities.join(" ")}</p>
 							</details>
 						{/if}
-						<p class="lm-hint">AGPL-3.0-only · LowBloat</p>
+						<p class="lm-hint">{t("about.license")}</p>
 					</div>
 				</div>
 			{/if}
@@ -168,7 +168,7 @@
 		display: flex;
 	}
 	.lm-settings__nav {
-		width: 230px;
+		width: var(--lm-settings-nav-w);
 		flex-shrink: 0;
 		display: flex;
 		flex-direction: column;
@@ -178,9 +178,9 @@
 	.lm-settings__nav button {
 		display: flex;
 		align-items: center;
-		gap: 10px;
-		height: 36px;
-		padding: 0 14px;
+		gap: var(--ca-space-3-5);
+		height: var(--lm-control-lg);
+		padding: 0 var(--ca-space-4-5);
 		border: 0;
 		background: transparent;
 		color: var(--ca-text-secondary);
@@ -196,37 +196,37 @@
 		background: var(--ca-surface-base);
 		color: var(--ca-text-primary);
 		font-weight: 600;
-		box-shadow: inset 3px 0 0 var(--lm-signal);
+		box-shadow: inset var(--lm-accent) 0 0 var(--lm-signal);
 	}
 	.lm-settings__body {
 		flex: 1;
 	}
 	.lm-settings__content {
-		max-width: 820px;
-		padding: 20px 28px 40px;
+		max-width: var(--lm-settings-w);
+		padding: var(--ca-space-7) var(--ca-space-10) var(--ca-space-12);
 		display: flex;
 		flex-direction: column;
-		gap: 22px;
+		gap: var(--ca-space-7);
 	}
 	.lm-settings__content :global(h2) {
 		margin: 0;
-		font-size: 20px;
+		font-size: var(--ca-font-size-xl);
 	}
 	.lm-about {
 		display: flex;
-		gap: 18px;
+		gap: var(--ca-space-6);
 		align-items: flex-start;
 	}
 	.lm-about p {
-		margin: 0 0 6px;
+		margin: 0 0 var(--ca-space-2);
 	}
 	.lm-about__name {
-		font-size: 18px;
+		font-size: var(--ca-font-size-h4);
 		font-weight: 700;
 	}
 	.lm-caps {
 		font-family: var(--ca-font-mono);
-		max-width: 520px;
+		max-width: var(--lm-caps-w);
 	}
 	@media (max-width: 760px) {
 		.lm-settings {

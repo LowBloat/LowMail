@@ -169,20 +169,20 @@
 	}
 	.lm-compose-chip {
 		position: absolute;
-		right: 16px;
-		bottom: 16px;
+		right: var(--ca-space-5);
+		bottom: var(--ca-space-5);
 		z-index: 5;
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		max-width: 320px;
-		padding: 10px 14px;
+		gap: var(--ca-space-2-5);
+		max-width: var(--lm-popover-w);
+		padding: var(--ca-space-3-5) var(--ca-space-4-5);
 		border: 1px solid var(--ca-outline-strong);
 		background: var(--ca-surface-raised, var(--ca-surface-base));
 		color: var(--ca-text-primary);
 		font: inherit;
 		font-weight: 600;
 		cursor: pointer;
-		box-shadow: 4px 4px 0 var(--lm-signal);
+		box-shadow: var(--lm-lift) var(--lm-lift) 0 var(--lm-signal);
 	}
 </style>

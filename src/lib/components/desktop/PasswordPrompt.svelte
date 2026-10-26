@@ -44,6 +44,6 @@
 		flex: 1;
 		display: grid;
 		place-items: center;
-		padding: 24px;
+		padding: var(--ca-space-8);
 	}
 </style>

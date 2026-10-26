@@ -5,6 +5,7 @@
 	 * outside the app, height following the content.
 	 */
 	import { openExternal } from "../../api";
+	import { frameTheme } from "../../frame-theme";
 	import { compose } from "../../state/compose.svelte";
 
 	let { html, remote = false, title, dark = false }: { html: string; remote?: boolean; title: string; dark?: boolean } = $props();
@@ -19,17 +20,19 @@
 	const doc = $derived.by(() => {
 		const remoteSrc = remote ? " https: http:" : "";
 		const csp = `default-src 'none'; img-src data: cid:${remoteSrc}; style-src 'unsafe-inline'${remoteSrc}; font-src data:${remoteSrc}; media-src data:`;
-		const colors = darkText ? "color:#fbfcf8;background:#1d221c" : "color:#171a17;background:#ffffff";
-		const quote = darkText ? "#41473e" : "#a9b1a5";
+		// HTML mail is designed for white paper; plain text follows the app.
+		const theme = frameTheme(darkText ? "dark" : "light");
+		const colors = `color:${theme.text};background:${darkText ? theme.surface : "white"}`;
+		const [padY, padX] = theme.pad.roomy;
 		return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="no-referrer"><meta http-equiv="x-dns-prefetch-control" content="off"><style>
 html{${colors}}
-body{margin:0;padding:18px 22px;font:14px/1.55 "Inter Variable",Inter,"Segoe UI",system-ui,sans-serif;overflow-wrap:break-word;${colors}}
+body{margin:0;padding:${padY} ${padX};font:${theme.font}/1.55 ${theme.family};overflow-wrap:break-word;${colors}}
 img{max-width:100%;height:auto}
 pre{white-space:pre-wrap}
-a{color:${darkText ? "#d4fc8a" : "#3d5c00"}}
-blockquote[type=cite]{margin:0 0 0 .8ex;padding-left:1ex;border-left:2px solid ${quote}}
+a{color:${theme.link}}
+blockquote[type=cite]{margin:0 0 0 .8ex;padding-left:1ex;border-left:${theme.stroke} solid ${theme.quote}}
 .lm-plain{white-space:pre-wrap}
-.lm-plain blockquote[type=cite]{color:${darkText ? "#b8c0b0" : "#4f584f"}}
+.lm-plain blockquote[type=cite]{color:${theme.muted}}
 </style></head><body>${html}</body></html>`;
 	});
 
@@ -89,6 +92,6 @@ blockquote[type=cite]{margin:0 0 0 .8ex;padding-left:1ex;border-left:2px solid $
 		display: block;
 		width: 100%;
 		border: 0;
-		background: #ffffff;
+		background: white;
 	}
 </style>

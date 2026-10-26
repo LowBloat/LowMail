@@ -117,7 +117,7 @@
 			{#if advanced}
 				<FormSection title={t("account.incoming")} layout="stack">
 					<Row gap={10} wrap>
-						<div class="lm-grow"><TextField label={t("account.host")} bind:value={form.imap.host} placeholder="imap.example.com" /></div>
+						<div class="lm-grow"><TextField label={t("account.host")} bind:value={form.imap.host} placeholder={t("account.imapHostExample")} /></div>
 						<div class="lm-port"><NumberField label={t("account.port")} min={1} max={65535} bind:value={form.imap.port} /></div>
 						<Select label={t("account.security")} value={form.imap.security} options={securityOptions} onchange={(v) => setSecurity("imap", v)} />
 					</Row>
@@ -125,7 +125,7 @@
 				</FormSection>
 				<FormSection title={t("account.outgoing")} layout="stack">
 					<Row gap={10} wrap>
-						<div class="lm-grow"><TextField label={t("account.host")} bind:value={form.smtp.host} placeholder="smtp.example.com" /></div>
+						<div class="lm-grow"><TextField label={t("account.host")} bind:value={form.smtp.host} placeholder={t("account.smtpHostExample")} /></div>
 						<div class="lm-port"><NumberField label={t("account.port")} min={1} max={65535} bind:value={form.smtp.port} /></div>
 						<Select label={t("account.security")} value={form.smtp.security} options={securityOptions} onchange={(v) => setSecurity("smtp", v)} />
 					</Row>
@@ -190,27 +190,27 @@
 		overflow: auto;
 		display: flex;
 		justify-content: center;
-		padding: 40px 16px;
+		padding: var(--ca-space-12) var(--ca-space-5);
 	}
 	.lm-welcome__card {
 		width: 100%;
-		max-width: 560px;
+		max-width: var(--lm-form-w);
 		display: flex;
 		flex-direction: column;
-		gap: 14px;
+		gap: var(--ca-space-4-5);
 	}
 	.lm-welcome__card h1 {
-		margin: 6px 0 0;
-		font-size: 24px;
+		margin: var(--ca-space-2) 0 0;
+		font-size: var(--ca-font-size-h3);
 	}
 	.lm-welcome__card p {
-		margin: 0 0 6px;
+		margin: 0 0 var(--ca-space-2);
 	}
 	.lm-grow {
 		flex: 1;
-		min-width: 200px;
+		min-width: var(--lm-host-min-w);
 	}
 	.lm-port {
-		width: 110px;
+		width: var(--lm-port-w);
 	}
 </style>

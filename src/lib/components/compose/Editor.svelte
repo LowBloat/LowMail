@@ -24,6 +24,7 @@
 		Type,
 		Underline,
 	} from "@lucide/svelte";
+	import { frameTheme } from "../../frame-theme";
 	import { prompt } from "../../state/dialogs.svelte";
 	import { t } from "../../i18n/index.svelte";
 
@@ -55,15 +56,18 @@
 
 	const COLORS = ["#171a17", "#4f584f", "#b42318", "#c2410c", "#a16207", "#247a48", "#4d7100", "#1f5fa8", "#6d3fa0", "#be185d"];
 
+	// The message is written on white paper, as most readers will see it.
+	const paper = frameTheme("light");
+	const [padY, padX] = paper.pad.compact;
 	const shell = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: blob: https: http:; style-src 'unsafe-inline'"><style>
-html{background:#fff;color:#171a17}
-body{margin:0;padding:14px 18px;min-height:calc(100vh - 28px);font:14px/1.55 "Inter Variable",Inter,"Segoe UI",system-ui,sans-serif;outline:none;overflow-wrap:break-word}
-body:empty::before{content:attr(data-placeholder);color:#8a9486}
+html{background:white;color:${paper.text}}
+body{margin:0;padding:${padY} ${padX};min-height:calc(100vh - 2 * ${padY});font:${paper.font}/1.55 ${paper.family};outline:none;overflow-wrap:break-word}
+body:empty::before{content:attr(data-placeholder);color:${paper.hint}}
 img{max-width:100%;height:auto}
 p{margin:0 0 .6em}
-blockquote{margin:0 0 0 .8ex;padding-left:1ex;border-left:2px solid #a9b1a5}
-.lm-signature{color:#4f584f}
-a{color:#3d5c00}
+blockquote{margin:0 0 0 .8ex;padding-left:1ex;border-left:${paper.stroke} solid ${paper.quote}}
+.lm-signature{color:${paper.muted}}
+a{color:${paper.link}}
 </style></head><body></body></html>`;
 
 	function emit() {
@@ -313,13 +317,13 @@ a{color:#3d5c00}
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 1px;
-		padding: 3px 4px;
+		padding: var(--ca-space-1) var(--ca-space-1-5);
 		border-bottom: 1px solid var(--ca-outline-subtle);
 		background: var(--ca-surface-sunken);
 	}
 	.lm-tool {
-		width: 30px;
-		height: 28px;
+		width: var(--lm-tool-wide);
+		height: var(--lm-tool);
 		display: grid;
 		place-items: center;
 		border: 0;
@@ -337,8 +341,8 @@ a{color:#3d5c00}
 	}
 	.lm-editor__sep {
 		width: 1px;
-		height: 18px;
-		margin: 0 4px;
+		height: var(--lm-separator-h);
+		margin: 0 var(--ca-space-1-5);
 		background: var(--ca-outline-subtle);
 	}
 	@media (max-width: 760px) {
@@ -351,15 +355,15 @@ a{color:#3d5c00}
 		flex: 1;
 		width: 100%;
 		border: 0;
-		background: #fff;
+		background: white;
 	}
 	.lm-editor__menu {
 		display: flex;
 		flex-direction: column;
-		min-width: 140px;
+		min-width: var(--lm-menu-min-w);
 	}
 	.lm-editor__menu button {
-		padding: 6px 10px;
+		padding: var(--ca-space-2) var(--ca-space-3-5);
 		border: 0;
 		background: transparent;
 		color: var(--ca-text-primary);
@@ -372,12 +376,12 @@ a{color:#3d5c00}
 	}
 	.lm-editor__colors {
 		display: grid;
-		grid-template-columns: repeat(5, 24px);
-		gap: 6px;
+		grid-template-columns: repeat(5, var(--lm-swatch));
+		gap: var(--ca-space-2);
 	}
 	.lm-swatch {
-		width: 24px;
-		height: 24px;
+		width: var(--lm-swatch);
+		height: var(--lm-swatch);
 		border: 1px solid var(--ca-outline-default);
 		cursor: pointer;
 	}

@@ -56,6 +56,8 @@ export const en: Dict = {
 	"account.sieveHint": "Filters and the vacation reply live on the server and work even when LowMail is closed.",
 	"account.sieveOn": "Use server filters",
 	"account.host": "Server",
+	"account.imapHostExample": "imap.example.com",
+	"account.smtpHostExample": "smtp.example.com",
 	"account.port": "Port",
 	"account.security": "Security",
 	"account.security.tls": "SSL/TLS",
@@ -74,6 +76,7 @@ export const en: Dict = {
 	"account.passwordWhy": "The password is not saved on this computer or was rejected.",
 	"accounts.intro": "E-mail accounts on this computer. Passwords are kept in the system's password store.",
 	"accounts.current": "Open",
+	"accounts.servers": "{email} · IMAP {imap} · SMTP {smtp}",
 	"accounts.delete.title": "Remove the account {email}?",
 	"accounts.delete.body": "Messages stay on the server. Contacts and preferences of this account on this computer are deleted.",
 
@@ -559,7 +562,9 @@ export const en: Dict = {
 	"window.restore": "Restore",
 	"window.close": "Close",
 
+	"about.name": "LowMail {version}",
 	"about.text": "A light e-mail client for your own IMAP and SMTP server.",
 	"about.account": "Signed in as {email}",
 	"about.capabilities": "IMAP server capabilities",
+	"about.license": "AGPL-3.0-only · LowBloat",
 };

@@ -66,7 +66,7 @@
 	.lm-move__filter {
 		width: 100%;
 		box-sizing: border-box;
-		margin-bottom: 8px;
+		margin-bottom: var(--ca-space-2-5);
 	}
 	.lm-move {
 		list-style: none;
@@ -80,8 +80,8 @@
 		width: 100%;
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		height: 34px;
+		gap: var(--ca-space-2-5);
+		height: var(--lm-menu-row);
 		border: 0;
 		background: transparent;
 		color: var(--ca-text-primary);
@@ -93,6 +93,6 @@
 		background: var(--lm-row-open);
 	}
 	.lm-move__none {
-		padding: 12px;
+		padding: var(--ca-space-4);
 	}
 </style>

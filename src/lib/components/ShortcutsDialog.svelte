@@ -21,7 +21,7 @@
 	.lm-keys {
 		display: grid;
 		grid-template-columns: max-content 1fr;
-		gap: 6px 18px;
+		gap: var(--ca-space-2) var(--ca-space-6);
 		margin: 0;
 	}
 	dt {

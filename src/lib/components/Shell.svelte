@@ -175,20 +175,20 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 4px;
-		padding: 10px 0;
+		gap: var(--ca-space-1-5);
+		padding: var(--ca-space-3-5) 0;
 		background: var(--ca-surface-sunken);
 		border-right: 1px solid var(--ca-outline-subtle);
 	}
 	.lm-rail__logo {
-		margin-bottom: 6px;
+		margin-bottom: var(--ca-space-2);
 	}
 	.lm-rail__compose,
 	.lm-rail__item,
 	.lm-rail__account {
 		position: relative;
-		width: 38px;
-		height: 38px;
+		width: var(--lm-rail-item);
+		height: var(--lm-rail-item);
 		display: grid;
 		place-items: center;
 		border: 0;
@@ -199,7 +199,7 @@
 	.lm-rail__compose {
 		background: var(--ca-brand-fill);
 		color: var(--ca-brand-contrast);
-		margin-bottom: 8px;
+		margin-bottom: var(--ca-space-2-5);
 	}
 	.lm-rail__compose:hover {
 		background: var(--ca-brand-fill-hover);
@@ -212,27 +212,27 @@
 	.lm-rail__item--active {
 		color: var(--ca-text-primary);
 		background: var(--ca-surface-base);
-		box-shadow: inset 3px 0 0 var(--lm-signal);
+		box-shadow: inset var(--lm-accent) 0 0 var(--lm-signal);
 	}
 	.lm-rail__badge {
 		position: absolute;
 		top: 1px;
-		left: 21px;
-		min-width: 16px;
-		height: 16px;
-		padding: 0 4px;
+		left: calc(50% + var(--ca-space-0-5));
+		min-width: var(--lm-icon);
+		height: var(--lm-icon);
+		padding: 0 var(--ca-space-1-5);
 		box-sizing: border-box;
 		background: var(--ca-brand-fill);
 		color: var(--ca-brand-contrast);
-		font-size: 10px;
+		font-size: var(--ca-font-size-micro);
 		font-weight: 750;
-		line-height: 16px;
+		line-height: var(--lm-icon);
 		text-align: center;
 		pointer-events: none;
 	}
 	.lm-rail__offline {
 		color: var(--lm-danger);
-		padding: 6px;
+		padding: var(--ca-space-2);
 	}
 	.lm-view {
 		flex: 1;
@@ -241,7 +241,7 @@
 	}
 	.lm-icon-gap {
 		display: inline-block;
-		width: 14px;
+		width: var(--ca-space-4-5);
 	}
 	@media (max-width: 640px) {
 		.lm-rail {

@@ -36,7 +36,7 @@
 		<li class="lm-account">
 			<div class="lm-account__text">
 				<span class="lm-account__name">{acc.label || acc.email}</span>
-				<span class="lm-hint">{acc.email} · IMAP {acc.imap.host}:{acc.imap.port} · SMTP {acc.smtp.host}:{acc.smtp.port}</span>
+				<span class="lm-hint">{t("accounts.servers", { email: acc.email, imap: `${acc.imap.host}:${acc.imap.port}`, smtp: `${acc.smtp.host}:${acc.smtp.port}` })}</span>
 			</div>
 			{#if acc.id === app.account?.id}<Badge tone="brand" subtle>{t("accounts.current")}</Badge>{/if}
 			<IconButton variant="text" size="sm" aria-label={t("action.edit")} onclick={() => (app.editingAccount = acc)}><Pencil size={14} /></IconButton>
@@ -64,8 +64,8 @@
 	.lm-account {
 		display: flex;
 		align-items: center;
-		gap: 10px;
-		padding: 10px 12px;
+		gap: var(--ca-space-3-5);
+		padding: var(--ca-space-3-5) var(--ca-space-4);
 		border-bottom: 1px solid var(--ca-outline-subtle);
 	}
 	.lm-account__text {

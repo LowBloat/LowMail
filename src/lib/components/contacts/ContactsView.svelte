@@ -237,7 +237,7 @@
 		display: flex;
 	}
 	.lm-contacts__groups {
-		width: 220px;
+		width: var(--lm-groups-w);
 		flex-shrink: 0;
 		display: flex;
 		flex-direction: column;
@@ -247,15 +247,15 @@
 	.lm-contacts__nav {
 		display: flex;
 		flex-direction: column;
-		padding: 6px 0;
+		padding: var(--ca-space-2) 0;
 		overflow: auto;
 	}
 	.lm-contacts__nav button {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		height: 32px;
-		padding: 0 12px;
+		gap: var(--ca-space-2-5);
+		height: var(--lm-nav-row);
+		padding: 0 var(--ca-space-4);
 		border: 0;
 		background: transparent;
 		color: var(--ca-text-secondary);
@@ -271,16 +271,16 @@
 		background: var(--ca-surface-base);
 		color: var(--ca-text-primary);
 		font-weight: 600;
-		box-shadow: inset 3px 0 0 var(--lm-signal);
+		box-shadow: inset var(--lm-accent) 0 0 var(--lm-signal);
 	}
 	.lm-contacts__dot {
-		width: 8px;
-		height: 8px;
-		margin: 0 3px;
+		width: var(--lm-dot);
+		height: var(--lm-dot);
+		margin: 0 var(--ca-space-1);
 		background: var(--ca-outline-strong);
 	}
 	.lm-contacts__list {
-		width: 340px;
+		width: var(--lm-list-w);
 		flex-shrink: 0;
 		border-right: 1px solid var(--ca-outline-subtle);
 	}
@@ -296,8 +296,8 @@
 		width: 100%;
 		display: flex;
 		align-items: center;
-		gap: 10px;
-		padding: 8px 12px;
+		gap: var(--ca-space-3-5);
+		padding: var(--ca-space-2-5) var(--ca-space-4);
 		border: 0;
 		border-bottom: 1px solid var(--ca-outline-subtle);
 		background: transparent;
@@ -324,13 +324,13 @@
 		flex: 1;
 	}
 	.lm-contacts__form {
-		padding: 18px 22px;
-		max-width: 560px;
+		padding: var(--ca-space-6) var(--ca-space-7);
+		max-width: var(--lm-form-w);
 	}
 	.lm-contacts__multi {
 		display: flex;
 		align-items: flex-end;
-		gap: 6px;
+		gap: var(--ca-space-2);
 	}
 	.lm-contacts__multi > :global(:first-child) {
 		flex: 1;
@@ -342,13 +342,13 @@
 		background: transparent;
 		color: var(--ca-brand-text);
 		font: inherit;
-		font-size: 13px;
+		font-size: var(--ca-font-size-button);
 		cursor: pointer;
 	}
 	.lm-contacts__actions {
 		display: flex;
 		justify-content: flex-end;
-		gap: 8px;
+		gap: var(--ca-space-2-5);
 	}
 	.lm-contacts__empty {
 		flex: 1;
@@ -368,7 +368,7 @@
 			display: none;
 		}
 		.lm-contacts__list {
-			width: 280px;
+			width: var(--lm-list-w-narrow);
 		}
 	}
 </style>

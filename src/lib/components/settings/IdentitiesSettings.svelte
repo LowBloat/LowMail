@@ -116,8 +116,8 @@
 		width: 100%;
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		padding: 12px 14px;
+		gap: var(--ca-space-4);
+		padding: var(--ca-space-4) var(--ca-space-4-5);
 		border: 0;
 		border-bottom: 1px solid var(--ca-outline-subtle);
 		background: transparent;
@@ -140,14 +140,14 @@
 	.lm-sig {
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
+		gap: var(--ca-space-2);
 	}
 	.lm-sig__label {
-		font-size: 13px;
+		font-size: var(--ca-font-size-button);
 		font-weight: 550;
 	}
 	.lm-sig__editor {
 		display: flex;
-		height: 230px;
+		height: var(--lm-signature-h);
 	}
 </style>

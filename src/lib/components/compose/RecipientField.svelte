@@ -165,18 +165,18 @@
 		position: relative;
 		display: flex;
 		align-items: flex-start;
-		gap: 8px;
-		min-height: 38px;
+		gap: var(--ca-space-2-5);
+		min-height: var(--lm-field-row);
 		border-bottom: 1px solid var(--ca-outline-subtle);
 	}
 	.lm-rcpt--invalid {
 		border-bottom-color: var(--lm-danger);
 	}
 	.lm-rcpt__label {
-		flex: 0 0 64px;
-		padding-top: 10px;
+		flex: 0 0 var(--lm-label-w);
+		padding-top: var(--ca-space-3-5);
 		color: var(--ca-text-secondary);
-		font-size: 13px;
+		font-size: var(--ca-font-size-button);
 	}
 	.lm-rcpt__box {
 		flex: 1;
@@ -184,14 +184,14 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 4px;
-		padding: 5px 0;
+		gap: var(--ca-space-1-5);
+		padding: var(--ca-space-1-5) 0;
 		cursor: text;
 	}
 	.lm-rcpt__box input {
 		flex: 1;
-		min-width: 140px;
-		height: 26px;
+		min-width: var(--lm-menu-min-w);
+		height: var(--lm-control-sm);
 		border: 0;
 		outline: none;
 		background: transparent;
@@ -202,28 +202,28 @@
 		display: inline-flex;
 		align-items: center;
 		max-width: 100%;
-		height: 26px;
+		height: var(--lm-control-sm);
 		border: 1px solid var(--ca-outline-default);
 		background: var(--ca-surface-sunken);
 	}
 	.lm-chip__text {
-		max-width: 260px;
+		max-width: var(--lm-chip-max-w);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		padding: 0 4px 0 8px;
+		padding: 0 var(--ca-space-1-5) 0 var(--ca-space-2-5);
 		border: 0;
 		background: transparent;
 		color: var(--ca-text-primary);
 		font: inherit;
-		font-size: 13px;
+		font-size: var(--ca-font-size-button);
 		cursor: pointer;
 	}
 	.lm-chip__x {
 		display: grid;
 		place-items: center;
-		width: 22px;
-		height: 24px;
+		width: var(--lm-tool-sm);
+		height: calc(var(--lm-control-sm) - 2 * 1px);
 		border: 0;
 		background: transparent;
 		color: var(--ca-text-secondary);
@@ -234,24 +234,24 @@
 	}
 	.lm-rcpt__list {
 		position: absolute;
-		left: 72px;
+		left: calc(var(--lm-label-w) + var(--ca-space-2-5));
 		top: 100%;
 		z-index: 20;
-		min-width: 320px;
-		max-width: calc(100% - 72px);
+		min-width: var(--lm-popover-w);
+		max-width: calc(100% - var(--lm-label-w) - var(--ca-space-2-5));
 		margin: 0;
-		padding: 4px 0;
+		padding: var(--ca-space-1-5) 0;
 		list-style: none;
 		background: var(--ca-surface-raised, var(--ca-surface-base));
 		border: 1px solid var(--ca-outline-strong);
-		box-shadow: 4px 4px 0 color-mix(in oklab, var(--ca-text-primary) 12%, transparent);
+		box-shadow: var(--lm-lift) var(--lm-lift) 0 color-mix(in oklab, var(--ca-text-primary) 12%, transparent);
 	}
 	.lm-rcpt__list button {
 		width: 100%;
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;
-		padding: 6px 12px;
+		padding: var(--ca-space-2) var(--ca-space-4);
 		border: 0;
 		background: transparent;
 		color: var(--ca-text-primary);
@@ -263,8 +263,8 @@
 		background: var(--lm-row-open) !important;
 	}
 	.lm-rcpt__error {
-		margin: 4px 0 0 72px;
+		margin: var(--ca-space-1-5) 0 0 var(--ca-space-24);
 		color: var(--lm-danger);
-		font-size: 12px;
+		font-size: var(--ca-font-size-body2);
 	}
 </style>

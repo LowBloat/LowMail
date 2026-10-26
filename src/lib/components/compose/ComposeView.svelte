@@ -217,27 +217,27 @@
 		min-height: 0;
 	}
 	.lm-compose__status {
-		margin-left: 8px;
+		margin-left: var(--ca-space-2-5);
 	}
 	.lm-compose__fields {
-		padding: 0 16px;
+		padding: 0 var(--ca-space-5);
 		flex-shrink: 0;
 	}
 	.lm-compose__row {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		min-height: 38px;
+		gap: var(--ca-space-2-5);
+		min-height: var(--lm-field-row);
 		border-bottom: 1px solid var(--ca-outline-subtle);
 	}
 	.lm-compose__label {
-		flex: 0 0 64px;
+		flex: 0 0 var(--lm-label-w);
 		color: var(--ca-text-secondary);
-		font-size: 13px;
+		font-size: var(--ca-font-size-button);
 	}
 	.lm-compose__value {
 		flex: 1;
-		max-width: 480px;
+		max-width: var(--lm-from-max-w);
 	}
 	.lm-compose__to {
 		display: flex;
@@ -249,8 +249,8 @@
 	}
 	.lm-compose__toggles {
 		display: flex;
-		gap: 10px;
-		padding: 10px 0 0 10px;
+		gap: var(--ca-space-3-5);
+		padding: var(--ca-space-3-5) 0 0 var(--ca-space-3-5);
 		border-bottom: 1px solid var(--ca-outline-subtle);
 		align-self: stretch;
 	}
@@ -260,7 +260,7 @@
 		background: transparent;
 		color: var(--ca-text-secondary);
 		font: inherit;
-		font-size: 13px;
+		font-size: var(--ca-font-size-button);
 		cursor: pointer;
 	}
 	.lm-link:hover {
@@ -270,43 +270,43 @@
 	.lm-compose__subject {
 		flex: 1;
 		min-width: 0;
-		height: 36px;
+		height: var(--lm-control-lg);
 		border: 0;
 		outline: none;
 		background: transparent;
 		color: var(--ca-text-primary);
 		font: inherit;
-		font-size: 15px;
+		font-size: var(--ca-font-size-dialog);
 		font-weight: 600;
 	}
 	.lm-compose__files {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 6px;
+		gap: var(--ca-space-2);
 		margin: 0;
-		padding: 8px 16px 0;
+		padding: var(--ca-space-2-5) var(--ca-space-5) 0;
 		list-style: none;
 	}
 	.lm-attach {
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		max-width: 300px;
-		height: 30px;
-		padding: 0 4px 0 8px;
+		gap: var(--ca-space-2);
+		max-width: var(--lm-attach-max-w);
+		height: var(--lm-tool-wide);
+		padding: 0 var(--ca-space-1-5) 0 var(--ca-space-2-5);
 		border: 1px solid var(--ca-outline-default);
 		background: var(--ca-surface-sunken);
-		font-size: 13px;
+		font-size: var(--ca-font-size-button);
 	}
 	.lm-attach--busy {
 		opacity: 0.7;
-		padding-right: 10px;
+		padding-right: var(--ca-space-3-5);
 	}
 	.lm-attach__x {
 		display: grid;
 		place-items: center;
-		width: 22px;
-		height: 22px;
+		width: var(--lm-tool-sm);
+		height: var(--lm-tool-sm);
 		border: 0;
 		background: transparent;
 		color: var(--ca-text-secondary);
@@ -320,26 +320,26 @@
 		min-height: 0;
 		display: flex;
 		flex-direction: column;
-		padding: 10px 16px;
+		padding: var(--ca-space-3-5) var(--ca-space-5);
 	}
 	.lm-compose__plain {
 		flex: 1;
-		min-height: 240px;
+		min-height: var(--lm-plain-min-h);
 		resize: none;
-		padding: 12px 14px;
+		padding: var(--ca-space-4) var(--ca-space-4-5);
 		border: 1px solid var(--ca-outline-default);
 		background: var(--ca-surface-base);
 		color: var(--ca-text-primary);
 		font-family: var(--ca-font-mono);
-		font-size: 13px;
+		font-size: var(--ca-font-size-button);
 		line-height: 1.55;
 		outline: none;
 	}
 	.lm-compose__actions {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		padding: 8px 16px 12px;
+		gap: var(--ca-space-2-5);
+		padding: var(--ca-space-2-5) var(--ca-space-5) var(--ca-space-4);
 		flex-shrink: 0;
 	}
 	.lm-compose__drop {
@@ -349,8 +349,8 @@
 		display: grid;
 		place-items: center;
 		background: color-mix(in oklab, var(--lm-signal) 18%, transparent);
-		border: 2px dashed var(--ca-outline-strong);
-		font-size: 18px;
+		border: var(--lm-stroke) dashed var(--ca-outline-strong);
+		font-size: var(--ca-font-size-h4);
 		font-weight: 700;
 		pointer-events: none;
 	}

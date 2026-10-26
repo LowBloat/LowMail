@@ -4,24 +4,92 @@
  */
 
 :root {
-	--lm-signal: #b8f238;
-	--lm-selection: color-mix(in oklab, #b8f238 38%, transparent);
-	--lm-row-selected: color-mix(in oklab, #b8f238 20%, var(--ca-surface-base));
-	--lm-row-open: color-mix(in oklab, #b8f238 32%, var(--ca-surface-base));
+	--lm-signal: var(--ca-brand-fill);
+	--lm-selection: color-mix(in oklab, var(--lm-signal) 38%, transparent);
+	--lm-row-selected: color-mix(in oklab, var(--lm-signal) 20%, var(--ca-surface-base));
+	--lm-row-open: color-mix(in oklab, var(--lm-signal) 32%, var(--ca-surface-base));
 	--lm-row-hover: color-mix(in oklab, var(--ca-text-primary) 5%, transparent);
 	--lm-unread: var(--ca-text-primary);
-	--lm-flag: #c27c00;
-	--lm-danger: var(--ca-status-error, #b42318);
+	--lm-flag: var(--ca-semantic-warning);
+	--lm-danger: var(--ca-semantic-error);
 	--lm-row-h: 58px;
 	--lm-row-h-single: 34px;
 	--lm-rail-w: 52px;
+
+	/*
+	 * Layout sizes. Spacing and type come from --ca-space-* and
+	 * --ca-font-size-*; these are the fixed sizes of LowMail's own parts.
+	 */
+	--lm-stroke: 2px;
+	--lm-accent: 3px;
+	--lm-lift: 4px;
+	--lm-resizer: 5px;
+	--lm-dot: 8px;
+	--lm-glyph: 10px;
+	--lm-icon: 16px;
+	--lm-tool-sm: 22px;
+	--lm-swatch: 24px;
+	--lm-control-sm: 26px;
+	--lm-tool: 28px;
+	--lm-tool-wide: 30px;
+	--lm-control: 32px;
+	--lm-nav-row: 32px;
+	--lm-menu-row: 34px;
+	--lm-control-lg: 36px;
+	--lm-field-row: 38px;
+	--lm-rail-item: 38px;
+	--lm-bar: 44px;
+	--lm-label-w: 64px;
+	--lm-menu-min-w: 140px;
+	--lm-popover-w: 320px;
+	--lm-form-w: 560px;
+
+	/* Desktop window */
+	--lm-titlebar-h: 34px;
+	--lm-caption-button-w: 46px;
+	--lm-mac-lights-w: 78px;
+
+	/* Message list and reader */
+	--lm-filters-w: 290px;
+	--lm-check-w: 26px;
+	--lm-from-w: 260px;
+	--lm-size-w: 58px;
+	--lm-folder-tag-w: 120px;
+	--lm-thread-from-min: 80px;
+	--lm-thread-from-max: 160px;
+	--lm-thumb-w: 120px;
+	--lm-thumb-h: 90px;
+	--lm-file-min-w: 230px;
+
+	/* Compose */
+	--lm-from-max-w: 480px;
+	--lm-attach-max-w: 300px;
+	--lm-chip-max-w: 260px;
+	--lm-plain-min-h: 240px;
+	--lm-separator-h: 18px;
+
+	/* Contacts */
+	--lm-groups-w: 220px;
+	--lm-list-w: 340px;
+	--lm-list-w-narrow: 280px;
+
+	/* Settings and account setup */
+	--lm-settings-nav-w: 230px;
+	--lm-settings-w: 820px;
+	--lm-caps-w: 520px;
+	--lm-signature-h: 230px;
+	--lm-script-max-h: 260px;
+	--lm-rule-select-w: 180px;
+	--lm-rule-select-wide-w: 240px;
+	--lm-folder-move-w: 150px;
+	--lm-host-min-w: 200px;
+	--lm-port-w: 110px;
 }
 
 :root.dark {
-	--lm-selection: color-mix(in oklab, #b8f238 26%, transparent);
-	--lm-row-selected: color-mix(in oklab, #b8f238 12%, var(--ca-surface-base));
-	--lm-row-open: color-mix(in oklab, #b8f238 22%, var(--ca-surface-base));
-	--lm-flag: #f2b84b;
+	--lm-selection: color-mix(in oklab, var(--lm-signal) 26%, transparent);
+	--lm-row-selected: color-mix(in oklab, var(--lm-signal) 12%, var(--ca-surface-base));
+	--lm-row-open: color-mix(in oklab, var(--lm-signal) 22%, var(--ca-surface-base));
 }
 
 :root[data-density="comfortable"] {
@@ -46,7 +114,7 @@ body {
 
 /* Work app: denser than a website, 14px body text. */
 body {
-	font-size: 14px;
+	font-size: var(--ca-font-size-body1);
 	line-height: 1.45;
 }
 
@@ -82,7 +150,7 @@ body {
 
 @media (pointer: fine) {
 	.ca-sel--sm .ca-sel__trigger {
-		font-size: 13px;
+		font-size: var(--ca-font-size-button);
 	}
 }
 
@@ -98,17 +166,17 @@ body {
 .lm-bar {
 	display: flex;
 	align-items: center;
-	gap: 4px;
+	gap: var(--ca-space-1-5);
 	flex-shrink: 0;
-	min-height: 44px;
-	padding: 0 8px;
+	min-height: var(--lm-bar);
+	padding: 0 var(--ca-space-2-5);
 	border-bottom: 1px solid var(--ca-outline-subtle);
 	background: var(--ca-surface-base);
 }
 
 .lm-bar__title {
 	font-weight: 650;
-	font-size: 15px;
+	font-size: var(--ca-font-size-dialog);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -131,7 +199,7 @@ body {
 
 .lm-hint {
 	color: var(--ca-text-tertiary, var(--ca-text-secondary));
-	font-size: 12px;
+	font-size: var(--ca-font-size-body2);
 }
 
 .lm-ellipsis {
@@ -143,7 +211,7 @@ body {
 
 /* The resize handle between panes. */
 .lm-resizer {
-	flex: 0 0 5px;
+	flex: 0 0 var(--lm-resizer);
 	margin: 0 -2px;
 	cursor: col-resize;
 	position: relative;
@@ -154,7 +222,7 @@ body {
 .lm-resizer::after {
 	content: "";
 	position: absolute;
-	inset: 0 2px;
+	inset: 0 calc((var(--lm-resizer) - 1px) / 2);
 	background: var(--ca-outline-subtle);
 }
 
@@ -166,24 +234,24 @@ body {
 .lm-resizer--rows {
 	cursor: row-resize;
 	margin: -2px 0;
-	flex-basis: 5px;
+	flex-basis: var(--lm-resizer);
 }
 
 .lm-resizer--rows::after {
-	inset: 2px 0;
+	inset: calc((var(--lm-resizer) - 1px) / 2) 0;
 }
 
 /* Visible keyboard focus everywhere. */
 :focus-visible {
-	outline: 2px solid var(--lm-signal);
-	outline-offset: -2px;
+	outline: var(--lm-stroke) solid var(--lm-signal);
+	outline-offset: calc(-1 * var(--lm-stroke));
 }
 
 kbd,
 .lm-kbd {
 	font-family: var(--ca-font-mono);
-	font-size: 11px;
-	padding: 1px 5px;
+	font-size: var(--ca-font-size-caption);
+	padding: 1px var(--ca-space-1-5);
 	border: 1px solid var(--ca-outline-default);
 	background: var(--ca-surface-sunken);
 }
@@ -196,14 +264,14 @@ kbd,
 .lm-ghost-btn {
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	height: 32px;
-	padding: 0 10px;
+	gap: var(--ca-space-2);
+	height: var(--lm-control);
+	padding: 0 var(--ca-space-3-5);
 	border: 0;
 	background: transparent;
 	color: var(--ca-text-primary);
 	font: inherit;
-	font-size: 13px;
+	font-size: var(--ca-font-size-button);
 	font-weight: 550;
 	cursor: pointer;
 }
@@ -215,6 +283,6 @@ kbd,
 
 /* Server details in toasts can be long words (addresses, URLs). */
 .ca-toaster {
-	max-width: calc(100vw - 32px);
+	max-width: calc(100vw - 2 * var(--ca-space-5));
 	overflow-wrap: anywhere;
 }

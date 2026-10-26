@@ -59,6 +59,8 @@ export const pt: Dict = {
 	"account.sieveHint": "Filtros e resposta automática ficam no servidor e funcionam mesmo com o LowMail fechado.",
 	"account.sieveOn": "Usar filtros do servidor",
 	"account.host": "Servidor",
+	"account.imapHostExample": "imap.exemplo.com.br",
+	"account.smtpHostExample": "smtp.exemplo.com.br",
 	"account.port": "Porta",
 	"account.security": "Segurança",
 	"account.security.tls": "SSL/TLS",
@@ -77,6 +79,7 @@ export const pt: Dict = {
 	"account.passwordWhy": "A senha não está salva neste computador ou foi recusada.",
 	"accounts.intro": "Contas de e-mail deste computador. As senhas ficam no cofre do sistema.",
 	"accounts.current": "Aberta",
+	"accounts.servers": "{email} · IMAP {imap} · SMTP {smtp}",
 	"accounts.delete.title": "Remover a conta {email}?",
 	"accounts.delete.body": "As mensagens continuam no servidor. Contatos e preferências desta conta neste computador serão apagados.",
 
@@ -580,7 +583,9 @@ export const pt: Dict = {
 	"window.close": "Fechar",
 
 	// About
+	"about.name": "LowMail {version}",
 	"about.text": "Cliente de e-mail leve para o seu próprio servidor IMAP e SMTP.",
 	"about.account": "Conectado como {email}",
 	"about.capabilities": "Recursos do servidor IMAP",
+	"about.license": "AGPL-3.0-only · LowBloat",
 };

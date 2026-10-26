@@ -102,17 +102,17 @@
 	.lm-ftable {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 13px;
+		font-size: var(--ca-font-size-button);
 	}
 	.lm-ftable th {
 		text-align: left;
 		font-weight: 600;
 		color: var(--ca-text-secondary);
-		padding: 6px 10px;
+		padding: var(--ca-space-2) var(--ca-space-3-5);
 		border-bottom: 1px solid var(--ca-outline-default);
 	}
 	.lm-ftable td {
-		padding: 6px 10px;
+		padding: var(--ca-space-2) var(--ca-space-3-5);
 		border-bottom: 1px solid var(--ca-outline-subtle);
 	}
 	.lm-ftable__num {
@@ -122,12 +122,12 @@
 	.lm-ftable__actions {
 		display: flex;
 		align-items: center;
-		gap: 12px;
+		gap: var(--ca-space-4);
 		flex-wrap: wrap;
 	}
 	.lm-ftable__move {
-		height: 26px;
-		max-width: 150px;
+		height: var(--lm-control-sm);
+		max-width: var(--lm-folder-move-w);
 	}
 	.lm-strong {
 		font-weight: 600;
