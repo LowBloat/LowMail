@@ -108,6 +108,15 @@ pub struct FlagChange {
     pub forwarded: Option<bool>,
 }
 
+/// Where moved messages went and their UIDs there (empty when the server
+/// does not tell), so the UI can undo the move.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Moved {
+    pub folder: String,
+    pub uids: Vec<u32>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SendResult {
@@ -527,50 +536,50 @@ impl MailClient {
         })
     }
 
-    pub async fn move_messages(&self, folder: &str, uids: &[u32], dest: &str) -> Result<()> {
+    pub async fn move_messages(&self, folder: &str, uids: &[u32], dest: &str) -> Result<Moved> {
         if folder == dest || uids.is_empty() {
-            return Ok(());
+            return Ok(Moved { folder: dest.to_string(), uids: Vec::new() });
         }
-        with_conn!(self.pool, false, |conn| {
+        let created = with_conn!(self.pool, false, |conn| {
             conn.select(folder).await?;
             conn.move_uids(uids, dest).await
         })?;
         self.emit(MailEvent::FolderChanged { folder: dest.to_string() });
-        Ok(())
+        Ok(Moved { folder: dest.to_string(), uids: created })
     }
 
-    pub async fn copy_messages(&self, folder: &str, uids: &[u32], dest: &str) -> Result<()> {
-        with_conn!(self.pool, false, |conn| {
+    pub async fn copy_messages(&self, folder: &str, uids: &[u32], dest: &str) -> Result<Moved> {
+        let created = with_conn!(self.pool, false, |conn| {
             conn.select(folder).await?;
             conn.copy_uids(uids, dest).await
         })?;
         self.emit(MailEvent::FolderChanged { folder: dest.to_string() });
-        Ok(())
+        Ok(Moved { folder: dest.to_string(), uids: created })
     }
 
     /// Moves to Trash, or deletes for good inside Trash, when `permanent`, or
-    /// when there is no Trash.
-    pub async fn delete_messages(&self, folder: &str, uids: &[u32], permanent: bool) -> Result<()> {
+    /// when there is no Trash. Returns where the messages went, if anywhere.
+    pub async fn delete_messages(&self, folder: &str, uids: &[u32], permanent: bool) -> Result<Option<Moved>> {
         let trash = if permanent { None } else { self.role_path(FolderRole::Trash).await? };
         match trash {
-            Some(trash) if trash != folder => self.move_messages(folder, uids, &trash).await,
+            Some(trash) if trash != folder => self.move_messages(folder, uids, &trash).await.map(Some),
             _ => {
                 with_conn!(self.pool, false, |conn| {
                     conn.select(folder).await?;
                     conn.delete_uids(uids).await
-                })
+                })?;
+                Ok(None)
             }
         }
     }
 
-    pub async fn archive(&self, folder: &str, uids: &[u32]) -> Result<String> {
+    pub async fn archive(&self, folder: &str, uids: &[u32]) -> Result<Moved> {
         let archive = self.ensure_role(FolderRole::Archive).await?;
-        self.move_messages(folder, uids, &archive).await?;
-        Ok(archive)
+        self.move_messages(folder, uids, &archive).await
     }
 
     /// Marks as spam (moves to Junk) or as not spam (back to the inbox).
-    pub async fn junk(&self, folder: &str, uids: &[u32], junk: bool) -> Result<String> {
+    pub async fn junk(&self, folder: &str, uids: &[u32], junk: bool) -> Result<Moved> {
         let dest = if junk { self.ensure_role(FolderRole::Junk).await? } else { "INBOX".to_string() };
         let (add, remove) = if junk { ("$Junk", "$NotJunk") } else { ("$NotJunk", "$Junk") };
         with_conn!(self.pool, true, |conn| {
@@ -579,8 +588,7 @@ impl MailClient {
             let _ = conn.store_flags(uids, &[add], &[remove]).await;
             Ok(())
         })?;
-        self.move_messages(folder, uids, &dest).await?;
-        Ok(dest)
+        self.move_messages(folder, uids, &dest).await
     }
 
     pub async fn quota(&self) -> Result<Option<Quota>> {
@@ -759,7 +767,7 @@ impl MailClient {
     }
 
     pub async fn discard_draft(&self, draft_ref: &MessageRef) -> Result<()> {
-        self.delete_messages(&draft_ref.folder, &[draft_ref.uid], true).await
+        self.delete_messages(&draft_ref.folder, &[draft_ref.uid], true).await.map(|_| ())
     }
 
     pub async fn send(&self, mut draft: Draft, save_copy: bool) -> Result<SendResult> {

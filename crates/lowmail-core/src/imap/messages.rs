@@ -145,25 +145,52 @@ impl Conn {
         Ok(())
     }
 
-    pub async fn copy_uids(&mut self, uids: &[u32], dest: &str) -> Result<()> {
-        for chunk in uids.chunks(CHUNK) {
-            self.raw(&format!("UID COPY {} {}", uid_set(chunk), quote(dest))).await?;
-        }
-        Ok(())
+    /// Runs a COPY or MOVE and returns the UIDs the messages got in the
+    /// destination (`COPYUID`, UIDPLUS), when the server tells them.
+    async fn transfer(&mut self, command: &str) -> Result<Vec<u32>> {
+        use async_imap::imap_proto::ResponseCode;
+        use async_imap::imap_proto::rfc4315::UidSetMember;
+        let mut created = Vec::new();
+        self.raw_each(command, |resp| {
+            let outcome = match resp {
+                Response::Data { outcome, .. } | Response::Done { outcome, .. } => outcome,
+                _ => return,
+            };
+            if let Some(ResponseCode::CopyUid(_, _, dest)) = &outcome.code {
+                for member in dest {
+                    match member {
+                        UidSetMember::Uid(u) => created.push(*u),
+                        UidSetMember::UidRange(r) => created.extend(r.clone()),
+                    }
+                }
+            }
+        })
+        .await?;
+        Ok(created)
     }
 
-    pub async fn move_uids(&mut self, uids: &[u32], dest: &str) -> Result<()> {
+    pub async fn copy_uids(&mut self, uids: &[u32], dest: &str) -> Result<Vec<u32>> {
+        let mut created = Vec::new();
+        for chunk in uids.chunks(CHUNK) {
+            created.extend(self.transfer(&format!("UID COPY {} {}", uid_set(chunk), quote(dest))).await?);
+        }
+        Ok(created)
+    }
+
+    /// Moves `uids` to `dest`; returns their new UIDs there when known.
+    pub async fn move_uids(&mut self, uids: &[u32], dest: &str) -> Result<Vec<u32>> {
+        let mut created = Vec::new();
         if self.caps.has("MOVE") {
             for chunk in uids.chunks(CHUNK) {
-                self.raw(&format!("UID MOVE {} {}", uid_set(chunk), quote(dest))).await?;
+                created.extend(self.transfer(&format!("UID MOVE {} {}", uid_set(chunk), quote(dest))).await?);
             }
         } else {
-            self.copy_uids(uids, dest).await?;
+            created = self.copy_uids(uids, dest).await?;
             self.store_flags(uids, &["\\Deleted"], &[]).await?;
             self.expunge_uids(uids).await?;
         }
         self.drain_unsolicited();
-        Ok(())
+        Ok(created)
     }
 
     /// Removes `uids` for good (they must already be flagged `\Deleted`).

@@ -97,6 +97,7 @@ export interface Filter {
 	unread: boolean;
 	flagged: boolean;
 	answered: boolean;
+	unanswered: boolean;
 	since: string | null;
 	before: string | null;
 	larger: number | null;

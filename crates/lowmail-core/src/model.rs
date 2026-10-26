@@ -204,6 +204,8 @@ pub struct Filter {
     pub flagged: bool,
     #[serde(default)]
     pub answered: bool,
+    #[serde(default)]
+    pub unanswered: bool,
     /// Dates as `YYYY-MM-DD`, inclusive.
     #[serde(default)]
     pub since: Option<String>,
@@ -220,6 +222,7 @@ impl Filter {
             && !self.unread
             && !self.flagged
             && !self.answered
+            && !self.unanswered
             && self.since.is_none()
             && self.before.is_none()
             && self.larger.is_none()

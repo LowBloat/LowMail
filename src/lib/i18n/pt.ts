@@ -81,6 +81,8 @@ export const pt: Dict = {
 	"accounts.delete.body": "As mensagens continuam no servidor. Contatos e preferências desta conta neste computador serão apagados.",
 
 	// Actions
+	"action.undo": "Desfazer",
+	"toast.undone": "Ação desfeita.",
 	"action.ok": "OK",
 	"action.cancel": "Cancelar",
 	"action.save": "Salvar",
@@ -170,6 +172,11 @@ export const pt: Dict = {
 	"list.dragging.other": "{n} mensagens",
 
 	// Sort
+	"show.label": "Mostrar",
+	"show.all": "Todas",
+	"show.unread": "Não lidas",
+	"show.flagged": "Sinalizadas",
+	"show.unanswered": "Não respondidas",
 	"sort.label": "Ordenar",
 	"sort.date": "Data",
 	"sort.arrival": "Chegada",
@@ -288,6 +295,8 @@ export const pt: Dict = {
 	"compose.cc": "Cc",
 	"compose.bcc": "Cco",
 	"compose.subject": "Assunto",
+	"compose.group": "Grupo {name}",
+	"compose.groupHint": "Adiciona todos os contatos do grupo",
 	"compose.send": "Enviar",
 	"compose.saveDraft": "Salvar rascunho",
 	"compose.attach": "Anexar arquivos",

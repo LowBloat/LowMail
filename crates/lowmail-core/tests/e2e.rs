@@ -348,3 +348,34 @@ async fn conversation_and_image_previews() {
     }
     assert!(previewed, "the seed has image attachments");
 }
+
+#[tokio::test]
+async fn groups_and_quick_filters() {
+    let (_server, c) = setup().await;
+    for (name, email) in [("Ana", "ana@example.com"), ("Bia", "bia@example.com")] {
+        dispatch(&c, "contacts.save", json!({ "contact": { "name": name, "emails": [email], "groups": ["Equipe"] } })).await.unwrap();
+    }
+    let sug = dispatch(&c, "compose.suggest", json!({ "query": "equ" })).await.unwrap();
+    assert_eq!(sug[0]["email"], "group:Equipe");
+    let members = dispatch(&c, "contacts.groupMembers", json!({ "group": "Equipe" })).await.unwrap();
+    assert_eq!(members.as_array().unwrap().len(), 2);
+
+    let unanswered = c.list("INBOX", 0, 500, &Sort::default(), &Filter { unanswered: true, ..Default::default() }).await.unwrap();
+    assert!(unanswered.total > 0 && unanswered.items.iter().all(|m| !m.flags.answered));
+    let answered = c.list("INBOX", 0, 500, &Sort::default(), &Filter { answered: true, ..Default::default() }).await.unwrap();
+    let all = c.list("INBOX", 0, 1, &Sort::default(), &Filter::default()).await.unwrap();
+    assert_eq!(answered.total + unanswered.total, all.total);
+}
+
+#[tokio::test]
+async fn moves_can_be_undone() {
+    let (_server, c) = setup().await;
+    let page = c.list("INBOX", 0, 3, &Sort::default(), &Filter::default()).await.unwrap();
+    let total = page.total;
+    let moved = c.delete_messages("INBOX", &page.uids[..2], false).await.unwrap().expect("moved to Trash");
+    assert_eq!(moved.folder, "Trash");
+    assert_eq!(moved.uids.len(), 2, "COPYUID tells the new UIDs");
+    c.move_messages(&moved.folder, &moved.uids, "INBOX").await.unwrap();
+    assert_eq!(c.list("INBOX", 0, 1, &Sort::default(), &Filter::default()).await.unwrap().total, total);
+    assert!(c.delete_messages("INBOX", &page.uids[2..3], true).await.unwrap().is_none());
+}

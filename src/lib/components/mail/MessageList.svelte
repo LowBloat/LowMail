@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button, Checkbox, DropdownMenu, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, EmptyState, IconButton, Popover, Select, Spinner, Switch, Tooltip } from "@codeatlasdev/ui";
+	import { Button, Checkbox, DropdownMenu, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, EmptyState, IconButton, Popover, Select, Spinner, Switch, Tooltip } from "@codeatlasdev/ui";
 	import { Archive, ArrowDownUp, Flag, Forward, Inbox, Mail, MailOpen, Menu, OctagonAlert, Paperclip, Reply, Search, SearchX, SlidersHorizontal, Trash2, X, FolderInput, CircleAlert } from "@lucide/svelte";
 	import { app } from "../../state/app.svelte";
 	import { compose } from "../../state/compose.svelte";
@@ -64,6 +64,13 @@
 		window.addEventListener("lm:search", focus);
 		return () => window.removeEventListener("lm:search", focus);
 	});
+
+	const quickFilter = $derived(mail.filter.unread ? "unread" : mail.filter.flagged ? "flagged" : mail.filter.unanswered ? "unanswered" : "all");
+
+	function setQuickFilter(value: string) {
+		const f = { ...$state.snapshot(mail.filter), unread: value === "unread", flagged: value === "flagged", unanswered: value === "unanswered" };
+		mail.search(f, mail.searchEverywhere);
+	}
 
 	function runSearch() {
 		mail.search({ ...$state.snapshot(mail.filter), text: searchText }, mail.searchEverywhere);
@@ -181,6 +188,14 @@
 				<DropdownMenuRadioGroup value={mail.sort.descending ? "desc" : "asc"} onValueChange={(v: string) => mail.setSort({ field: mail.sort.field, descending: v === "desc" })}>
 					<DropdownMenuRadioItem value="desc">{t("sort.descending")}</DropdownMenuRadioItem>
 					<DropdownMenuRadioItem value="asc">{t("sort.ascending")}</DropdownMenuRadioItem>
+				</DropdownMenuRadioGroup>
+				<DropdownMenuSeparator />
+				<DropdownMenuLabel>{t("show.label")}</DropdownMenuLabel>
+				<DropdownMenuRadioGroup value={quickFilter} onValueChange={(v: string) => setQuickFilter(v)}>
+					<DropdownMenuRadioItem value="all">{t("show.all")}</DropdownMenuRadioItem>
+					<DropdownMenuRadioItem value="unread">{t("show.unread")}</DropdownMenuRadioItem>
+					<DropdownMenuRadioItem value="flagged">{t("show.flagged")}</DropdownMenuRadioItem>
+					<DropdownMenuRadioItem value="unanswered">{t("show.unanswered")}</DropdownMenuRadioItem>
 				</DropdownMenuRadioGroup>
 			</DropdownMenu>
 		{/if}

@@ -199,11 +199,10 @@ pub async fn dispatch(client: &Arc<MailClient>, method: &str, p: Value) -> Resul
             }
             let a: A = params(p)?;
             if method == "messages.move" {
-                client.move_messages(&a.folder, &a.uids, &a.dest).await?;
+                ok(client.move_messages(&a.folder, &a.uids, &a.dest).await?)
             } else {
-                client.copy_messages(&a.folder, &a.uids, &a.dest).await?;
+                ok(client.copy_messages(&a.folder, &a.uids, &a.dest).await?)
             }
-            ok(())
         }
         "messages.delete" => {
             #[derive(Deserialize)]
@@ -214,12 +213,11 @@ pub async fn dispatch(client: &Arc<MailClient>, method: &str, p: Value) -> Resul
                 permanent: bool,
             }
             let a: A = params(p)?;
-            client.delete_messages(&a.folder, &a.uids, a.permanent).await?;
-            ok(())
+            ok(client.delete_messages(&a.folder, &a.uids, a.permanent).await?)
         }
         "messages.archive" => {
             let a: MessagesArg = params(p)?;
-            ok(json!({ "folder": client.archive(&a.folder, &a.uids).await? }))
+            ok(client.archive(&a.folder, &a.uids).await?)
         }
         "messages.junk" => {
             #[derive(Deserialize)]
@@ -229,7 +227,7 @@ pub async fn dispatch(client: &Arc<MailClient>, method: &str, p: Value) -> Resul
                 junk: bool,
             }
             let a: A = params(p)?;
-            ok(json!({ "folder": client.junk(&a.folder, &a.uids, a.junk).await? }))
+            ok(client.junk(&a.folder, &a.uids, a.junk).await?)
         }
         "messages.sendReceipt" => {
             let a: MessageArg = params(p)?;
@@ -283,7 +281,31 @@ pub async fn dispatch(client: &Arc<MailClient>, method: &str, p: Value) -> Resul
                 query: String,
             }
             let a: A = params(p)?;
-            ok(store.suggest(&owner, &a.query, 12)?)
+            // Contact groups come first, as `group:<name>`; picking one adds its members.
+            let q = a.query.trim().to_lowercase();
+            let mut out: Vec<Address> = store
+                .contact_groups(&owner)?
+                .into_iter()
+                .filter(|g| !q.is_empty() && g.to_lowercase().contains(&q))
+                .take(3)
+                .map(|g| Address::new(Some(g.clone()), format!("group:{g}")))
+                .collect();
+            out.extend(store.suggest(&owner, &a.query, 12)?);
+            ok(out)
+        }
+        "contacts.groupMembers" => {
+            #[derive(Deserialize)]
+            struct A {
+                group: String,
+            }
+            let a: A = params(p)?;
+            let members: Vec<Address> = store
+                .contacts(&owner, "", false, 100_000)?
+                .into_iter()
+                .filter(|c| c.groups.iter().any(|g| g == &a.group))
+                .filter_map(|c| c.emails.first().map(|e| Address::new(Some(c.name.clone()), e.clone())))
+                .collect();
+            ok(members)
         }
         "uploads.delete" => {
             #[derive(Deserialize)]

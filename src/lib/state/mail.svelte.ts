@@ -20,11 +20,11 @@ export function parseKey(key: RowKey): { folder: string; uid: number } {
 }
 
 export function emptyFilter(): Filter {
-	return { text: "", scope: "headers", unread: false, flagged: false, answered: false, since: null, before: null, larger: null };
+	return { text: "", scope: "headers", unread: false, flagged: false, answered: false, unanswered: false, since: null, before: null, larger: null };
 }
 
 export function filterActive(f: Filter) {
-	return !!f.text.trim() || f.unread || f.flagged || f.answered || !!f.since || !!f.before || !!f.larger;
+	return !!f.text.trim() || f.unread || f.flagged || f.answered || f.unanswered || !!f.since || !!f.before || !!f.larger;
 }
 
 /** UIDs of `keys` grouped by folder. */
@@ -497,16 +497,36 @@ class MailState {
 		}
 	}
 
+	/** Runs a move-like action, then offers to undo it when the server said
+	 * where the messages went (COPYUID). */
 	private async run(keys: RowKey[], action: (folder: string, uids: number[]) => Promise<unknown>, done?: string) {
 		if (!keys.length) return;
 		this.removeRows(keys);
+		const moves: { from: string; to: string; uids: number[] }[] = [];
 		try {
-			for (const [folder, uids] of byFolder(keys)) await action(folder, uids);
-			if (done) toast.success(done);
+			for (const [folder, uids] of byFolder(keys)) {
+				const moved = (await action(folder, uids)) as { folder?: string; uids?: number[] } | null;
+				if (moved?.folder && moved.uids?.length) moves.push({ from: folder, to: moved.folder, uids: moved.uids });
+			}
+			if (done) {
+				const undo = moves.length ? { label: t("action.undo"), onClick: () => void this.undo(moves) } : undefined;
+				toast.success(done, { action: undo, duration: undo ? 8000 : 4000 });
+			}
 		} catch (e) {
 			toast.error(errorText(e));
 			void this.loadList(true);
 		}
+		void this.refreshCounts();
+	}
+
+	private async undo(moves: { from: string; to: string; uids: number[] }[]) {
+		try {
+			for (const m of moves) await call("messages.move", { folder: m.to, uids: m.uids, dest: m.from });
+			toast.success(t("toast.undone"));
+		} catch (e) {
+			toast.error(errorText(e));
+		}
+		void this.loadList(true);
 		void this.refreshCounts();
 	}
 

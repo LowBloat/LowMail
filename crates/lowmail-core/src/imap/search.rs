@@ -44,6 +44,9 @@ pub fn build_criteria(filter: &Filter, literal_plus: bool) -> (String, bool) {
     if filter.answered {
         keys.push("ANSWERED".into());
     }
+    if filter.unanswered {
+        keys.push("UNANSWERED".into());
+    }
     if let Some(d) = filter.since.as_deref().and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()) {
         keys.push(format!("SINCE {}", imap_date(d)));
     }

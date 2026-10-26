@@ -167,7 +167,8 @@ impl Conn {
         while self.session.unsolicited_responses.try_recv().is_ok() {}
     }
 
-    /// Runs a command and hands each untagged response to `each`, failing on NO/BAD.
+    /// Runs a command and hands each untagged response, then the tagged OK,
+    /// to `each`; fails on NO/BAD.
     pub async fn raw_each(&mut self, command: &str, mut each: impl FnMut(&Response<'_>)) -> Result<()> {
         let tag = self.session.run_command(command).await?;
         loop {
@@ -177,7 +178,10 @@ impl Conn {
             if let Response::Done { tag: done, status, outcome } = resp.parsed() {
                 if *done == tag {
                     return match status {
-                        Status::Ok => Ok(()),
+                        Status::Ok => {
+                            each(resp.parsed());
+                            Ok(())
+                        }
                         _ => Err(Error::server("The server refused the operation.")
                             .with_detail(outcome.information.as_deref().unwrap_or("").to_string())),
                     };

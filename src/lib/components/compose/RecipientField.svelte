@@ -31,8 +31,13 @@
 		suggestions = [];
 	}
 
-	function pick(a: Address) {
-		if (!addresses.some((x) => x.email.toLowerCase() === a.email.toLowerCase())) addresses = [...addresses, a];
+	async function pick(a: Address) {
+		if (a.email.startsWith("group:")) {
+			// A contact group: add every member.
+			const members = await call<Address[]>("contacts.groupMembers", { group: a.email.slice(6) }).catch(() => [] as Address[]);
+			const fresh = members.filter((m) => !addresses.some((x) => x.email.toLowerCase() === m.email.toLowerCase()));
+			addresses = [...addresses, ...fresh];
+		} else if (!addresses.some((x) => x.email.toLowerCase() === a.email.toLowerCase())) addresses = [...addresses, a];
 		text = "";
 		suggestions = [];
 		invalid = [];
@@ -80,7 +85,7 @@
 			if (e.key === "ArrowUp") return e.preventDefault(), (active = (active - 1 + suggestions.length) % suggestions.length);
 			if (e.key === "Enter" || e.key === "Tab") {
 				e.preventDefault();
-				pick(suggestions[active]);
+				void pick(suggestions[active]);
 				return;
 			}
 			if (e.key === "Escape") {
@@ -137,9 +142,14 @@
 		<ul class="lm-rcpt__list" id="{id}-list" role="listbox">
 			{#each suggestions as s, i (s.email)}
 				<li role="option" aria-selected={i === active}>
-					<button type="button" class:lm-rcpt__opt--active={i === active} onmousedown={(e) => (e.preventDefault(), pick(s))}>
-						<span class="lm-ellipsis">{s.name || s.email}</span>
-						{#if s.name}<span class="lm-hint lm-ellipsis">{s.email}</span>{/if}
+					<button type="button" class:lm-rcpt__opt--active={i === active} onmousedown={(e) => (e.preventDefault(), void pick(s))}>
+						{#if s.email.startsWith("group:")}
+							<span class="lm-ellipsis">{t("compose.group", { name: s.name ?? "" })}</span>
+							<span class="lm-hint">{t("compose.groupHint")}</span>
+						{:else}
+							<span class="lm-ellipsis">{s.name || s.email}</span>
+							{#if s.name}<span class="lm-hint lm-ellipsis">{s.email}</span>{/if}
+						{/if}
 					</button>
 				</li>
 			{/each}
