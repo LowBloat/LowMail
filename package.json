@@ -18,6 +18,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
+    "lint:ui": "codeatlas-ui lint",
     "test": "bun test src",
     "tauri": "tauri",
     "server": "cargo run -p lowmail-server --features demo -- demo"

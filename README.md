@@ -145,6 +145,7 @@ Checks:
 cargo test --workspace     # engine against the test mail server, web server over HTTP
 cargo clippy --workspace --all-targets
 bun run check              # svelte-check
+bun run lint:ui            # design system guard (@codeatlasdev/ui tokens, no raw colors or sizes)
 bun test src               # translations complete in both languages
 ```
 
