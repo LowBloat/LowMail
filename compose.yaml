@@ -1,0 +1,45 @@
+# LowMail webmail with Docker Compose.
+#
+#   docker compose up -d --build
+#
+# Then open http://<server>:8480 (put it behind your HTTPS reverse proxy).
+# Settings are LOWMAIL_* environment variables; see README.md.
+
+name: lowmail
+
+services:
+  lowmail:
+    build: .
+    image: lowmail:0.1.0
+    container_name: lowmail
+    restart: unless-stopped
+    ports:
+      - "8480:8480"
+    volumes:
+      # Preferences, identities and contacts (SQLite). No passwords or mail.
+      - lowmail-data:/data
+    environment:
+      # Your mail server. Ports and security default to IMAPS 993,
+      # submission 587 with STARTTLS and ManageSieve 4190.
+      LOWMAIL_IMAP_HOST: "mail.example.com"
+      # LOWMAIL_IMAP_PORT: "993"
+      # LOWMAIL_IMAP_SECURITY: "tls"          # tls, starttls or none
+      LOWMAIL_SMTP_HOST: "mail.example.com"
+      # LOWMAIL_SMTP_PORT: "587"
+      # LOWMAIL_SMTP_SECURITY: "starttls"
+      # LOWMAIL_SIEVE: "true"                 # filters and vacation reply
+      # LOWMAIL_SIEVE_HOST: "mail.example.com"
+      # Users may type only the part before @:
+      LOWMAIL_DOMAIN: "example.com"
+      # Only these domains may sign in:
+      LOWMAIL_ALLOWED_DOMAINS: "example.com"
+      # Behind HTTPS (recommended):
+      LOWMAIL_SECURE_COOKIES: "true"
+      LOWMAIL_TRUST_PROXY: "true"
+      # LOWMAIL_SESSION_MINUTES: "240"
+      # LOWMAIL_PRODUCT_NAME: "Webmail Example"
+      # LOWMAIL_ACCEPT_INVALID_CERTS: "false" # self-signed certificate on the mail server
+      # LOWMAIL_LOG: "info"
+
+volumes:
+  lowmail-data:
