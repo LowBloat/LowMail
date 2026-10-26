@@ -1,0 +1,58 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LowMail",
+  "version": "0.1.0",
+  "identifier": "dev.lowbloat.lowmail",
+  "build": {
+    "beforeDevCommand": "bun run dev",
+    "devUrl": "http://localhost:1430",
+    "beforeBuildCommand": "bun run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "LowMail",
+        "width": 1320,
+        "height": 840,
+        "minWidth": 720,
+        "minHeight": 480,
+        "maximized": true,
+        "visible": false,
+        "decorations": false,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob: https: http:",
+        "font-src": "'self' data:",
+        "connect-src": "'self' ipc: http://ipc.localhost",
+        "frame-src": "'self' blob: data:",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'none'"
+      },
+      "dangerousDisableAssetCspModification": ["style-src"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "publisher": "LowBloat",
+    "category": "Productivity",
+    "shortDescription": "Light e-mail client for your own mail server",
+    "longDescription": "LowMail is a light e-mail client for your own IMAP and SMTP server, with server filters, vacation replies, contacts and identities.",
+    "copyright": "Copyright © 2026 LowBloat. Licensed under AGPL-3.0-only.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

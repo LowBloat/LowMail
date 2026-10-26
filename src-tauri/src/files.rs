@@ -1,0 +1,96 @@
+//! Files on disk: attaching, saving attachments and messages, opening
+//! attachments with the system's apps.
+
+use std::path::PathBuf;
+
+use lowmail_core::model::Upload;
+use lowmail_core::service::MailClient;
+use lowmail_core::{Error, Result};
+use tauri::{AppHandle, Manager, State};
+use tauri_plugin_dialog::{DialogExt, FilePath};
+use tauri_plugin_opener::OpenerExt;
+
+use crate::AppState;
+
+fn path_of(file: FilePath) -> Result<PathBuf> {
+    file.into_path().map_err(|_| Error::invalid("Unsupported file location."))
+}
+
+async fn ask_save(app: &AppHandle, filename: &str) -> Option<PathBuf> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog().file().set_file_name(filename).save_file(move |path| {
+        let _ = tx.send(path);
+    });
+    rx.await.ok().flatten().and_then(|p| path_of(p).ok())
+}
+
+fn write(path: &PathBuf, bytes: &[u8]) -> Result<()> {
+    std::fs::write(path, bytes).map_err(|e| Error::internal("The file could not be saved.").with_detail(e.to_string()))
+}
+
+/// Picks files with the native dialog and attaches them.
+#[tauri::command]
+pub async fn upload_pick(app: AppHandle, state: State<'_, AppState>, account_id: Option<String>) -> Result<Vec<Upload>> {
+    let client = state.client(account_id.as_deref(), None).await?;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog().file().pick_files(move |files| {
+        let _ = tx.send(files);
+    });
+    let Some(files) = rx.await.ok().flatten() else { return Ok(Vec::new()) };
+    let mut out = Vec::new();
+    for f in files {
+        let path = path_of(f)?;
+        let bytes = std::fs::read(&path).map_err(|e| Error::not_found("The file could not be read.").with_detail(e.to_string()))?;
+        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "file".into());
+        out.push(client.add_upload(&name, "", bytes)?);
+    }
+    Ok(out)
+}
+
+/// Saves an attachment where the user chooses. False when cancelled.
+#[tauri::command]
+pub async fn attachment_save(app: AppHandle, state: State<'_, AppState>, account_id: Option<String>, folder: String, uid: u32, part: String) -> Result<bool> {
+    let client = state.client(account_id.as_deref(), None).await?;
+    let (name, _, bytes) = client.attachment(&folder, uid, &part).await?;
+    match ask_save(&app, &name).await {
+        Some(path) => write(&path, &bytes).map(|_| true),
+        None => Ok(false),
+    }
+}
+
+/// Opens an attachment with the default app, from a private temporary folder.
+#[tauri::command]
+pub async fn attachment_open(app: AppHandle, state: State<'_, AppState>, account_id: Option<String>, folder: String, uid: u32, part: String) -> Result<()> {
+    let client = state.client(account_id.as_deref(), None).await?;
+    let (name, _, bytes) = client.attachment(&folder, uid, &part).await?;
+    let dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| Error::internal("No cache folder.").with_detail(e.to_string()))?
+        .join("attachments")
+        .join(uuid::Uuid::new_v4().simple().to_string());
+    std::fs::create_dir_all(&dir).map_err(|e| Error::internal("The temporary folder could not be created.").with_detail(e.to_string()))?;
+    let path = dir.join(&name);
+    write(&path, &bytes)?;
+    app.opener()
+        .open_path(path.to_string_lossy(), None::<&str>)
+        .map_err(|e| Error::internal("No app opens this kind of file.").with_detail(e.to_string()))
+}
+
+#[tauri::command]
+pub async fn message_save(app: AppHandle, state: State<'_, AppState>, account_id: Option<String>, folder: String, uid: u32) -> Result<bool> {
+    let client = state.client(account_id.as_deref(), None).await?;
+    let raw = client.raw(&folder, uid).await?;
+    match ask_save(&app, &MailClient::eml_name(&raw)).await {
+        Some(path) => write(&path, &raw).map(|_| true),
+        None => Ok(false),
+    }
+}
+
+#[tauri::command]
+pub async fn text_save(app: AppHandle, filename: String, text: String) -> Result<bool> {
+    match ask_save(&app, &filename).await {
+        Some(path) => write(&path, text.as_bytes()).map(|_| true),
+        None => Ok(false),
+    }
+}

@@ -889,3 +889,14 @@ mod send_check {
         });
     }
 }
+
+/// Checks that the IMAP and SMTP servers accept the account's sign-in.
+pub async fn test_account(account: &AccountConfig, password: &str) -> Result<()> {
+    let conn = crate::imap::Conn::open(account, password).await?;
+    conn.logout().await;
+    smtp::test(account, password).await.map_err(|e| {
+        let mut e = e;
+        e.message = format!("Incoming mail works, but the outgoing server failed: {}", e.message);
+        e
+    })
+}

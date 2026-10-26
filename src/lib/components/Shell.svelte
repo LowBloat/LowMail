@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
-	import { Avatar, Badge, DropdownMenu, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, Tooltip } from "@codeatlasdev/ui";
+	import { Avatar, DropdownMenu, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, Tooltip } from "@codeatlasdev/ui";
 	import { Check, LogOut, Mail, Plus, Settings, SquarePen, UserRound, WifiOff } from "@lucide/svelte";
 	import { isDesktop } from "../api";
 	import { app, type View } from "../state/app.svelte";
@@ -86,7 +86,7 @@
 				>
 					<item.icon size={19} />
 					{#if item.view === "mail" && mail.inboxUnread > 0}
-						<span class="lm-rail__badge"><Badge count={mail.inboxUnread} size="sm" /></span>
+						<span class="lm-rail__badge">{mail.inboxUnread > 99 ? "99+" : mail.inboxUnread}</span>
 					{/if}
 				</button>
 			</Tooltip>
@@ -195,7 +195,17 @@
 	.lm-rail__badge {
 		position: absolute;
 		top: 1px;
-		right: -2px;
+		left: 21px;
+		min-width: 16px;
+		height: 16px;
+		padding: 0 4px;
+		box-sizing: border-box;
+		background: var(--ca-brand-fill);
+		color: var(--ca-brand-contrast);
+		font-size: 10px;
+		font-weight: 750;
+		line-height: 16px;
+		text-align: center;
 		pointer-events: none;
 	}
 	.lm-rail__offline {

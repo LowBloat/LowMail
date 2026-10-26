@@ -145,7 +145,7 @@
 			{/if}
 			<Button variant="ghost" size="sm" onclick={() => ref && compose.open("reply", ref)}>
 				{#snippet leading()}<Reply size={15} />{/snippet}
-				{t("action.reply")}
+				<span class="lm-hide-phone">{t("action.reply")}</span>
 			</Button>
 			<Button variant="ghost" size="sm" onclick={() => ref && compose.open("replyAll", ref)}>
 				{#snippet leading()}<ReplyAll size={15} />{/snippet}
@@ -333,6 +333,8 @@
 	}
 	.lm-reader__bar {
 		gap: 2px;
+		overflow-x: auto;
+		scrollbar-width: none;
 	}
 	.lm-reader__more {
 		width: 32px;
@@ -526,6 +528,19 @@
 	@media (max-width: 1100px) {
 		.lm-hide-narrow {
 			display: none;
+		}
+	}
+	@media (max-width: 520px) {
+		.lm-hide-phone {
+			display: none;
+		}
+		.lm-reader__head {
+			padding: 14px 14px 10px;
+		}
+		.lm-banner,
+		.lm-files {
+			margin-left: 14px;
+			margin-right: 14px;
 		}
 	}
 </style>

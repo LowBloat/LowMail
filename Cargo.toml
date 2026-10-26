@@ -1,12 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/*", "src-tauri"]
 default-members = ["crates/*"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.89"
+rust-version = "1.95"
 license = "AGPL-3.0-only"
 authors = ["LowBloat"]
 repository = "https://github.com/LowBloat/LowMail"
@@ -45,3 +45,7 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[workspace.lints.rust]
+# MSVC prints "Creating library ..." for binaries that export symbols.
+linker_messages = "allow"

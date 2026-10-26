@@ -2,6 +2,7 @@
 //! data, shared by the desktop app and the web server.
 
 pub mod compose;
+pub mod discover;
 pub mod error;
 pub mod imap;
 pub mod mime;

@@ -10,6 +10,7 @@ import { displayName } from "../format";
 import { notify } from "../notify";
 import type { Filter, Folder, FolderCount, MailEvent, Message, MessagePage, MessageSummary, Sort } from "../types";
 import { app } from "./app.svelte";
+import { confirm } from "./dialogs.svelte";
 
 export type RowKey = string;
 export const keyOf = (folder: string, uid: number): RowKey => `${folder}\u0000${uid}`;
@@ -515,7 +516,6 @@ class MailState {
 		const inTrash = keys.every((k) => parseKey(k).folder === this.folderByRole("trash")?.path);
 		const forGood = permanent || inTrash || !this.folderByRole("trash");
 		if (forGood && app.settings.confirmPermanentDelete) {
-			const { confirm } = await import("./dialogs.svelte");
 			const ok = await confirm({
 				title: t("confirm.deleteForever.title", { n }),
 				description: t("confirm.deleteForever.body"),

@@ -26,6 +26,16 @@
 	);
 	const folderOptions = $derived(mail.folders.filter((f) => f.selectable).map((f) => ({ value: f.path, label: f.role ? folderLabel(f) : f.displayPath })));
 
+	/** A user folder, else Archive, else the inbox. */
+	function defaultFolder() {
+		return mail.folders.find((f) => f.selectable && !f.role)?.path ?? mail.folderByRole("archive")?.path ?? "INBOX";
+	}
+
+	function folderName(path: string) {
+		const f = mail.folders.find((x) => x.path === path);
+		return f ? (f.role ? folderLabel(f) : f.displayPath) : path;
+	}
+
 	function newRule(): FilterRule {
 		return {
 			id: crypto.randomUUID(),
@@ -33,7 +43,7 @@
 			enabled: true,
 			matchAll: true,
 			conditions: [{ field: "from", header: "", op: "contains", value: "" }],
-			actions: [{ type: "move", folder: folderOptions.find((f) => f.value !== "INBOX")?.value ?? "INBOX" }],
+			actions: [{ type: "move", folder: defaultFolder() }],
 			stop: true,
 		};
 	}
@@ -52,8 +62,8 @@
 	function setAction(i: number, type: string) {
 		if (!editing) return;
 		const defaults: Record<string, FilterAction> = {
-			move: { type: "move", folder: folderOptions[0]?.value ?? "INBOX" },
-			copy: { type: "copy", folder: folderOptions[0]?.value ?? "INBOX" },
+			move: { type: "move", folder: defaultFolder() },
+			copy: { type: "copy", folder: defaultFolder() },
 			markRead: { type: "markRead" },
 			flag: { type: "flag" },
 			forward: { type: "forward", to: "", keep: true },
@@ -67,7 +77,7 @@
 		const conds = rule.conditions.map((c) => `${t(`filters.field.${c.field}`)}${c.field === "header" ? ` ${c.header}` : ""} ${t(`filters.op.${c.op}`)} "${c.value}"`).join(rule.matchAll ? ` ${t("filters.and")} ` : ` ${t("filters.or")} `);
 		const acts = rule.actions
 			.map((a) => {
-				if (a.type === "move" || a.type === "copy") return `${t(`filters.action.${a.type}`)} ${mail.folders.find((f) => f.path === a.folder)?.displayPath ?? a.folder}`;
+				if (a.type === "move" || a.type === "copy") return `${t(`filters.action.${a.type}`)} ${folderName(a.folder)}`;
 				if (a.type === "forward") return `${t("filters.action.forward")} ${a.to}`;
 				return t(`filters.action.${a.type}`);
 			})
@@ -137,11 +147,11 @@
 					</Row>
 					{#each editing.conditions as c, i (i)}
 						<div class="lm-rule-row">
-							<Select size="sm" value={c.field} options={fieldOptions} aria-label={t("filters.fieldLabel")} onchange={(v) => setField(c, v as FilterField)} />
+							<Select class="lm-rule-select" size="sm" value={c.field} options={fieldOptions} aria-label={t("filters.fieldLabel")} onchange={(v) => setField(c, v as FilterField)} />
 							{#if c.field === "header"}
 								<input class="lm-input" placeholder={t("filters.headerName")} aria-label={t("filters.headerName")} bind:value={c.header} />
 							{/if}
-							<Select size="sm" value={c.op} options={c.field === "size" ? sizeOps : textOps} aria-label={t("filters.opLabel")} onchange={(v) => (c.op = v as FilterOp)} />
+							<Select class="lm-rule-select" size="sm" value={c.op} options={c.field === "size" ? sizeOps : textOps} aria-label={t("filters.opLabel")} onchange={(v) => (c.op = v as FilterOp)} />
 							<input class="lm-input lm-rule-row__value" placeholder={c.field === "size" ? t("filters.sizeKb") : t("filters.value")} aria-label={t("filters.value")} bind:value={c.value} type={c.field === "size" ? "number" : "text"} />
 							{#if editing.conditions.length > 1}
 								<IconButton variant="text" size="sm" aria-label={t("action.remove")} onclick={() => editing?.conditions.splice(i, 1)}><X size={14} /></IconButton>
@@ -154,9 +164,9 @@
 					<strong>{t("filters.then")}</strong>
 					{#each editing.actions as a, i (i)}
 						<div class="lm-rule-row">
-							<Select size="sm" value={a.type} options={actionOptions} aria-label={t("filters.actionLabel")} onchange={(v) => setAction(i, v)} />
+							<Select class="lm-rule-select" size="sm" value={a.type} options={actionOptions} aria-label={t("filters.actionLabel")} onchange={(v) => setAction(i, v)} />
 							{#if a.type === "move" || a.type === "copy"}
-								<Select size="sm" value={a.folder} options={folderOptions} aria-label={t("filters.folder")} onchange={(v) => a.type === "move" || a.type === "copy" ? (a.folder = v) : null} />
+								<Select class="lm-rule-select lm-rule-select--wide" size="sm" value={a.folder} options={folderOptions} aria-label={t("filters.folder")} onchange={(v) => a.type === "move" || a.type === "copy" ? (a.folder = v) : null} />
 							{:else if a.type === "forward"}
 								<input class="lm-input lm-rule-row__value" type="email" placeholder={t("filters.forwardTo")} aria-label={t("filters.forwardTo")} bind:value={a.to} />
 								<Checkbox label={t("filters.keepCopy")} bind:checked={a.keep} />
@@ -229,6 +239,14 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 8px;
+	}
+	.lm-rule-row :global(.lm-rule-select) {
+		flex: 0 0 180px;
+		width: 180px;
+	}
+	.lm-rule-row :global(.lm-rule-select--wide) {
+		flex-basis: 240px;
+		width: 240px;
 	}
 	.lm-rule-row__value {
 		flex: 1;

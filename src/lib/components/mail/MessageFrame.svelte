@@ -28,7 +28,7 @@ img{max-width:100%;height:auto}
 pre{white-space:pre-wrap}
 a{color:${darkText ? "#d4fc8a" : "#3d5c00"}}
 blockquote[type=cite]{margin:0 0 0 .8ex;padding-left:1ex;border-left:2px solid ${quote}}
-.lm-plain{white-space:pre-wrap;font-family:"Cascadia Mono",Consolas,"SF Mono",monospace;font-size:13px}
+.lm-plain{white-space:pre-wrap}
 .lm-plain blockquote[type=cite]{color:${darkText ? "#b8c0b0" : "#4f584f"}}
 </style></head><body>${html}</body></html>`;
 	});

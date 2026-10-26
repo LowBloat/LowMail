@@ -36,3 +36,6 @@ tracing.workspace = true
 
 [dev-dependencies]
 lowmail-testserver = { path = "../lowmail-testserver" }
+
+[lints]
+workspace = true
