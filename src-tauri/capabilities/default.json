@@ -15,6 +15,7 @@
     "dialog:allow-open",
     "notification:default",
     "process:allow-exit",
-    "opener:default"
+    "opener:default",
+    "deep-link:default"
   ]
 }

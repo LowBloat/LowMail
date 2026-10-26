@@ -1,3 +1,8 @@
+<script lang="ts" module>
+	/** Startup mailto: links are handled once, not again after switching accounts. */
+	let startupHandled = false;
+</script>
+
 <script lang="ts">
 	import { onDestroy } from "svelte";
 	import { Avatar, DropdownMenu, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, Tooltip } from "@codeatlasdev/ui";
@@ -57,6 +62,23 @@
 		const show = () => (showShortcuts = true);
 		window.addEventListener("lm:shortcuts", show);
 		return () => window.removeEventListener("lm:shortcuts", show);
+	});
+
+	// Desktop: mailto: links from other apps open the editor.
+	$effect(() => {
+		if (!isDesktop) return;
+		let unlisten: (() => void) | undefined;
+		const open = (url: string) => /^mailto:/i.test(url) && void compose.mailto(url);
+		void (async () => {
+			const { invoke } = await import("@tauri-apps/api/core");
+			const { listen } = await import("@tauri-apps/api/event");
+			if (!startupHandled) {
+				startupHandled = true;
+				for (const url of await invoke<string[]>("startup_urls").catch(() => [] as string[])) open(url);
+			}
+			unlisten = await listen<string>("open-url", (e) => open(e.payload));
+		})();
+		return () => unlisten?.();
 	});
 
 	onDestroy(() => mail.stop());

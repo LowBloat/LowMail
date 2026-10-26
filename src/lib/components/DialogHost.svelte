@@ -35,7 +35,7 @@
 		oncancel={() => dialogs.close(false)}
 	/>
 {:else if req?.kind === "choose"}
-	<Dialog open title={req.options.title} description={req.options.description} size="sm" onOpenChange={(o) => !o && dialogs.close(null)}>
+	<Dialog open title={req.options.title} description={req.options.description} size="md" onOpenChange={(o) => !o && dialogs.close(null)}>
 		{#snippet actions()}
 			<Row gap={8} justify="flex-end" wrap>
 				{#each req.options.choices as choice (choice.value)}

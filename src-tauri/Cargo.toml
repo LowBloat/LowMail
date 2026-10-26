@@ -27,6 +27,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-process = "2"
+tauri-plugin-deep-link = "2"
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
@@ -39,7 +40,7 @@ percent-encoding = "2"
 keyring = { version = "=3.6.3", features = ["apple-native", "windows-native", "sync-secret-service"] }
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
-tauri-plugin-single-instance = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
 [lints]
 workspace = true

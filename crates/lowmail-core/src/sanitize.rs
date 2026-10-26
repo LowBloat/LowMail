@@ -241,7 +241,7 @@ pub fn strip_style_blocks(html: &str) -> String {
 
 /// Plain text as HTML: escaped, links clickable, `>` quotes as blockquotes.
 pub fn text_to_html(text: &str) -> String {
-    let mut out = String::from("<div class=\"lm-plain\">");
+    let mut out = String::from("<div class=\"lm-plain\" style=\"white-space: pre-wrap\">");
     let mut depth = 0usize;
     for line in text.replace("\r\n", "\n").split('\n') {
         let mut level = 0;
@@ -313,13 +313,56 @@ fn linkify_escaped(text: &str) -> String {
 
 /// HTML to readable plain text (for the text part of sent messages and quotes).
 pub fn html_to_text(html: &str) -> String {
-    let text = html2text::config::plain().string_from_read(html.as_bytes(), 78).unwrap_or_else(|_| ammonia::clean_text(html));
+    let html = plain_breaks(html);
+    let text = html2text::config::plain().string_from_read(html.as_bytes(), 78).unwrap_or_else(|_| ammonia::clean_text(&html));
     text.lines().map(|l| l.trim_end()).collect::<Vec<_>>().join("\n").trim().to_string()
+}
+
+/// Line breaks inside `lm-plain` blocks (plain text shown with
+/// `white-space: pre-wrap`) as `<br>`, which HTML-to-text converters keep.
+fn plain_breaks(html: &str) -> String {
+    let mut out = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some(start) = rest.find("<div class=\"lm-plain\"") {
+        out.push_str(&rest[..start]);
+        let block = &rest[start..];
+        // The end of the block: the `</div>` that closes it.
+        let mut depth = 0usize;
+        let mut end = block.len();
+        let mut i = 0;
+        while i < block.len() {
+            if block[i..].starts_with("<div") {
+                depth += 1;
+                i += 4;
+            } else if block[i..].starts_with("</div>") {
+                depth = depth.saturating_sub(1);
+                i += 6;
+                if depth == 0 {
+                    end = i;
+                    break;
+                }
+            } else {
+                i += block[i..].chars().next().map_or(1, char::len_utf8);
+            }
+        }
+        out.push_str(&block[..end].replace("\r\n", "\n").replace('\n', "<br>"));
+        rest = &block[end..];
+    }
+    out.push_str(rest);
+    out
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plain_text_round_trip_keeps_lines() {
+        let html = format!("<p>Oi</p>{}<p>fim</p>", text_to_html("linha 1\nlinha 2\n\n> citado"));
+        let text = html_to_text(&html);
+        assert!(text.contains("linha 1\nlinha 2"), "{text}");
+        assert!(text.contains("fim"));
+    }
 
     #[test]
     fn removes_scripts_and_remote_images() {

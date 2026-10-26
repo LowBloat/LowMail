@@ -48,6 +48,9 @@ class AppState {
 	/** Callbacks run after an account opens (the mail state loads folders). */
 	private openHandlers: Array<() => void | Promise<void>> = [];
 
+	/** Version of the web server or of the desktop app. */
+	version = $state("");
+
 	get productName() {
 		return this.webConfig?.productName ?? "LowMail";
 	}
@@ -66,6 +69,8 @@ class AppState {
 		});
 		try {
 			if (isDesktop) {
+				const { getVersion } = await import("@tauri-apps/api/app");
+				this.version = await getVersion().catch(() => "");
 				this.accounts = await desktop.accounts();
 				const last = localStorage.getItem(LAST_ACCOUNT_KEY);
 				const first = this.accounts.find((a) => a.id === last) ?? this.accounts[0];
@@ -73,6 +78,7 @@ class AppState {
 				else this.editingAccount = null;
 			} else {
 				this.webConfig = await web.config();
+				this.version = this.webConfig.version;
 				try {
 					const s = await web.session();
 					this.account = s.account;

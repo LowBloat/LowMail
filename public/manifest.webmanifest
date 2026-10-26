@@ -1,0 +1,15 @@
+{
+  "name": "LowMail",
+  "short_name": "LowMail",
+  "description": "E-mail leve para o seu próprio servidor.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#171a17",
+  "theme_color": "#171a17",
+  "icons": [
+    { "src": "icons/icon-256.png", "sizes": "256x256", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

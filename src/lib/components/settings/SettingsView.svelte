@@ -144,7 +144,7 @@
 				<div class="lm-about">
 					<img src="./favicon.svg" alt="" width="56" height="56" />
 					<div>
-						<p class="lm-about__name">LowMail {app.webConfig?.version ?? ""}</p>
+						<p class="lm-about__name">LowMail {app.version}</p>
 						<p class="lm-muted">{t("about.text")}</p>
 						<p class="lm-hint">{t("about.account", { email: app.account?.email ?? "" })}</p>
 						{#if app.account?.capabilities.length}

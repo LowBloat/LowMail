@@ -13,7 +13,7 @@
 	let height = $state(120);
 	let observer: ResizeObserver | null = null;
 
-	const plainOnly = $derived(/^<div class="lm-plain">/.test(html.trim()));
+	const plainOnly = $derived(/^<div class="lm-plain"/.test(html.trim()));
 	const darkText = $derived(dark && plainOnly);
 
 	const doc = $derived.by(() => {

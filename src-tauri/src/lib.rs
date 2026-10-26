@@ -207,6 +207,13 @@ async fn upload(state: State<'_, AppState>, request: tauri::ipc::Request<'_>) ->
     client.add_upload(&header("x-filename"), &header("x-content-type"), bytes.clone())
 }
 
+/// `mailto:` links the app was started with (the OS passes them on launch).
+#[tauri::command]
+fn startup_urls(app: AppHandle) -> Vec<String> {
+    use tauri_plugin_deep_link::DeepLinkExt;
+    app.deep_link().get_current().ok().flatten().map(|urls| urls.into_iter().map(|u| u.to_string()).collect()).unwrap_or_default()
+}
+
 pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::try_from_env("LOWMAIL_LOG").unwrap_or_else(|_| "warn".into()))
@@ -223,6 +230,7 @@ pub fn run() {
         }));
     }
     builder
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
@@ -237,6 +245,17 @@ pub fn run() {
                 watching: Mutex::new(HashSet::new()),
             });
             window::start_fallback(app.handle());
+            // mailto: links opened while LowMail runs reach the page as `open-url`.
+            use tauri_plugin_deep_link::DeepLinkExt;
+            let handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    let _ = handle.emit("open-url", url.to_string());
+                }
+                if let Some(w) = handle.get_webview_window("main") {
+                    let _ = w.set_focus();
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -256,6 +275,7 @@ pub fn run() {
             files::message_save,
             files::text_save,
             window::window_painted,
+            startup_urls,
         ])
         .run(tauri::generate_context!())
         .expect("error while running LowMail");
