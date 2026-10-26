@@ -263,8 +263,7 @@ jobs:
       - name: Android project and icons
         run: |
           export NDK_HOME="$ANDROID_NDK_LATEST_HOME"
-          bun run tauri android init --ci
-          bun run tauri icon src-tauri/icons/icon.png
+          bash .github/scripts/android_project.sh
       - name: Build the APK
         run: |
           export NDK_HOME="$ANDROID_NDK_LATEST_HOME"
