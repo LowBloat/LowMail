@@ -5,7 +5,7 @@
 	 * under "Server settings".
 	 */
 	import { Alert, Button, Checkbox, Dialog, FormSection, NumberField, Row, Select, Stack, Switch, TextField, toast } from "@codeatlasdev/ui";
-	import { desktop } from "../../api";
+	import { desktop, isMobile } from "../../api";
 	import { app } from "../../state/app.svelte";
 	import { errorDetail, errorText, t } from "../../i18n/index.svelte";
 	import { isEmail } from "../../format";
@@ -111,7 +111,7 @@
 				revealable
 				bind:value={password}
 				autocomplete="current-password"
-				description={editing ? t("account.passwordKeep") : t("account.passwordStored")}
+				description={editing ? t("account.passwordKeep") : t(isMobile ? "account.passwordStoredApp" : "account.passwordStored")}
 			/>
 			<Checkbox label={t("account.serverSettings")} bind:checked={advanced} />
 			{#if advanced}

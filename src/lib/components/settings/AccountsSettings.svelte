@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Badge, Button, IconButton, toast } from "@codeatlasdev/ui";
 	import { Pencil, Plus, Trash2 } from "@lucide/svelte";
-	import { desktop } from "../../api";
+	import { desktop, isMobile } from "../../api";
 	import { app } from "../../state/app.svelte";
 	import { mail } from "../../state/mail.svelte";
 	import { confirm } from "../../state/dialogs.svelte";
@@ -30,7 +30,7 @@
 </script>
 
 <h2>{t("settings.accounts")}</h2>
-<p class="lm-muted lm-intro">{t("accounts.intro")}</p>
+<p class="lm-muted lm-intro">{t(isMobile ? "accounts.introApp" : "accounts.intro")}</p>
 <ul class="lm-accounts">
 	{#each app.accounts as acc (acc.id)}
 		<li class="lm-account">
