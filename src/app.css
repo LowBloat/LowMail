@@ -1,0 +1,214 @@
+/*
+ * LowMail adjustments on top of CodeAtlas UI. Unlayered CSS beats the
+ * library's `ca.*` layers without needing !important.
+ */
+
+:root {
+	--lm-signal: #b8f238;
+	--lm-selection: color-mix(in oklab, #b8f238 38%, transparent);
+	--lm-row-selected: color-mix(in oklab, #b8f238 20%, var(--ca-surface-base));
+	--lm-row-open: color-mix(in oklab, #b8f238 32%, var(--ca-surface-base));
+	--lm-row-hover: color-mix(in oklab, var(--ca-text-primary) 5%, transparent);
+	--lm-unread: var(--ca-text-primary);
+	--lm-flag: #c27c00;
+	--lm-danger: var(--ca-status-error, #b42318);
+	--lm-row-h: 58px;
+	--lm-row-h-single: 34px;
+	--lm-rail-w: 52px;
+}
+
+:root.dark {
+	--lm-selection: color-mix(in oklab, #b8f238 26%, transparent);
+	--lm-row-selected: color-mix(in oklab, #b8f238 12%, var(--ca-surface-base));
+	--lm-row-open: color-mix(in oklab, #b8f238 22%, var(--ca-surface-base));
+	--lm-flag: #f2b84b;
+}
+
+:root[data-density="comfortable"] {
+	--lm-row-h: 68px;
+	--lm-row-h-single: 42px;
+}
+
+html,
+body {
+	height: 100%;
+	margin: 0;
+	overflow: hidden;
+	background: var(--ca-surface-base);
+	color: var(--ca-text-primary);
+	font-family: var(--ca-font-sans);
+	-webkit-font-smoothing: antialiased;
+}
+
+#app {
+	height: 100%;
+}
+
+/* Work app: denser than a website, 14px body text. */
+body {
+	font-size: 14px;
+	line-height: 1.45;
+}
+
+/* Zero radius and no decorative shadows, like the rest of LowBloat. */
+.ca-btn,
+.ca-icon-btn,
+.ca-sel__trigger,
+.ca-tf__wrap,
+.ca-ta__wrap,
+.ca-nf__wrap,
+.ca-chip,
+.ca-dialog,
+.ca-drawer,
+.ca-dropdown-content,
+.ca-popover-content,
+.ca-tooltip-content,
+.ca-alert {
+	border-radius: 0;
+}
+
+.ca-btn--filled {
+	font-weight: 650;
+}
+
+::selection {
+	background: var(--lm-selection);
+}
+
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--ca-outline-default) transparent;
+}
+
+@media (pointer: fine) {
+	.ca-sel--sm .ca-sel__trigger {
+		font-size: 13px;
+	}
+}
+
+/* Panes and bars shared by the views. */
+.lm-pane {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	background: var(--ca-surface-base);
+}
+
+.lm-bar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+	min-height: 44px;
+	padding: 0 8px;
+	border-bottom: 1px solid var(--ca-outline-subtle);
+	background: var(--ca-surface-base);
+}
+
+.lm-bar__title {
+	font-weight: 650;
+	font-size: 15px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+}
+
+.lm-spacer {
+	flex: 1;
+}
+
+.lm-scroll {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+}
+
+.lm-muted {
+	color: var(--ca-text-secondary);
+}
+
+.lm-hint {
+	color: var(--ca-text-tertiary, var(--ca-text-secondary));
+	font-size: 12px;
+}
+
+.lm-ellipsis {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+}
+
+/* The resize handle between panes. */
+.lm-resizer {
+	flex: 0 0 5px;
+	margin: 0 -2px;
+	cursor: col-resize;
+	position: relative;
+	z-index: 2;
+	touch-action: none;
+}
+
+.lm-resizer::after {
+	content: "";
+	position: absolute;
+	inset: 0 2px;
+	background: var(--ca-outline-subtle);
+}
+
+.lm-resizer:hover::after,
+.lm-resizer:active::after {
+	background: var(--lm-signal);
+}
+
+.lm-resizer--rows {
+	cursor: row-resize;
+	margin: -2px 0;
+	flex-basis: 5px;
+}
+
+.lm-resizer--rows::after {
+	inset: 2px 0;
+}
+
+/* Visible keyboard focus everywhere. */
+:focus-visible {
+	outline: 2px solid var(--lm-signal);
+	outline-offset: -2px;
+}
+
+kbd,
+.lm-kbd {
+	font-family: var(--ca-font-mono);
+	font-size: 11px;
+	padding: 1px 5px;
+	border: 1px solid var(--ca-outline-default);
+	background: var(--ca-surface-sunken);
+}
+
+.lm-drawer .ca-drawer__body {
+	padding: 0;
+}
+
+/* A plain button that looks like a small ghost Button, for menu triggers. */
+.lm-ghost-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 32px;
+	padding: 0 10px;
+	border: 0;
+	background: transparent;
+	color: var(--ca-text-primary);
+	font: inherit;
+	font-size: 13px;
+	font-weight: 550;
+	cursor: pointer;
+}
+
+.lm-ghost-btn:hover,
+.lm-ghost-btn[aria-expanded="true"] {
+	background: var(--lm-row-hover);
+}

@@ -9,7 +9,7 @@ use base64::Engine;
 use sha2::{Digest, Sha256};
 
 #[derive(rust_embed::Embed)]
-#[folder = "$CARGO_MANIFEST_DIR/../../dist"]
+#[folder = "../../dist"]
 #[allow_missing = true]
 #[exclude = "*.map"]
 struct Ui;

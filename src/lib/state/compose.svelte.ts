@@ -79,7 +79,8 @@ class ComposeState {
 	private autosaveTimer: ReturnType<typeof setInterval> | undefined;
 	private uploadSeq = 0;
 
-	get open() {
+	/** A message is being written (shown or kept aside). */
+	get active() {
 		return this.draft !== null;
 	}
 
