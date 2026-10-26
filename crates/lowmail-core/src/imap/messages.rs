@@ -21,9 +21,7 @@ impl Conn {
     pub async fn sorted_uids(&mut self, sort: &Sort, filter: &Filter) -> Result<Vec<u32>> {
         let literal_plus = self.caps.has("LITERAL+");
         let (criteria, utf8) = build_criteria(filter, literal_plus);
-        let server_sort = self.caps.has("SORT");
-        let mut uids: Vec<u32> = Vec::new();
-        if server_sort {
+        if self.caps.has("SORT") {
             let key = match sort.field {
                 SortField::Date => "DATE",
                 SortField::Arrival => "ARRIVAL",
@@ -33,42 +31,56 @@ impl Conn {
                 SortField::Size => "SIZE",
             };
             let program = if sort.descending { format!("REVERSE {key}") } else { key.to_string() };
-            let command = format!("UID SORT ({program}) UTF-8 {criteria}");
-            self.raw_each(&command, |resp| {
-                if let Response::MailboxData(MailboxDatum::Sort(list)) = resp {
-                    uids.extend_from_slice(list);
+            // Some servers only sort in US-ASCII; plain criteria are fine with it.
+            let charsets: &[&str] = if utf8 { &["UTF-8"] } else { &["UTF-8", "US-ASCII"] };
+            for charset in charsets {
+                let mut uids: Vec<u32> = Vec::new();
+                let result = self
+                    .raw_each(&format!("UID SORT ({program}) {charset} {criteria}"), |resp| {
+                        if let Response::MailboxData(MailboxDatum::Sort(list)) = resp {
+                            uids.extend_from_slice(list);
+                        }
+                    })
+                    .await;
+                match result {
+                    Ok(()) => return Ok(uids),
+                    Err(e) if e.kind == crate::error::ErrorKind::Server => continue,
+                    Err(e) => return Err(e),
                 }
-            })
-            .await?;
-        } else {
-            let charset = if utf8 { "CHARSET UTF-8 " } else { "" };
-            self.raw_each(&format!("UID SEARCH {charset}{criteria}"), |resp| {
-                if let Response::MailboxData(MailboxDatum::Search(list)) = resp {
-                    uids.extend_from_slice(list);
-                }
-            })
-            .await?;
-            // Without SORT, UIDs follow arrival order, which is close to date order.
-            uids.sort_unstable();
-            if sort.descending {
-                uids.reverse();
             }
+            // SORT refused: search and order by arrival below.
+        }
+        let mut uids = self.search_uids(filter).await?;
+        // Without SORT, UIDs follow arrival order, which is close to date order.
+        uids.sort_unstable();
+        if sort.descending {
+            uids.reverse();
         }
         Ok(uids)
     }
 
-    /// UIDs matching `filter`, unordered.
+    /// UIDs matching `filter`, unordered. Retries without `CHARSET UTF-8`
+    /// for servers that refuse it (UTF-8 inside quotes still works on most).
     pub async fn search_uids(&mut self, filter: &Filter) -> Result<Vec<u32>> {
         let (criteria, utf8) = build_criteria(filter, self.caps.has("LITERAL+"));
-        let charset = if utf8 { "CHARSET UTF-8 " } else { "" };
-        let mut uids = Vec::new();
-        self.raw_each(&format!("UID SEARCH {charset}{criteria}"), |resp| {
-            if let Response::MailboxData(MailboxDatum::Search(list)) = resp {
-                uids.extend_from_slice(list);
+        let attempts: &[&str] = if utf8 { &["CHARSET UTF-8 ", ""] } else { &[""] };
+        let mut last = None;
+        for charset in attempts {
+            let mut uids = Vec::new();
+            let result = self
+                .raw_each(&format!("UID SEARCH {charset}{criteria}"), |resp| {
+                    if let Response::MailboxData(MailboxDatum::Search(list)) = resp {
+                        uids.extend_from_slice(list);
+                    }
+                })
+                .await;
+            match result {
+                Ok(()) => return Ok(uids),
+                Err(e) if e.kind == crate::error::ErrorKind::Server => last = Some(e),
+                Err(e) => return Err(e),
             }
-        })
-        .await?;
-        Ok(uids)
+        }
+        Err(last.unwrap_or_else(|| crate::error::Error::server("The server refused the search.")))
     }
 
     /// Summaries of `uids` in the selected folder, in the order given.

@@ -10,8 +10,12 @@ use lettre::{AsyncSmtpTransport, AsyncTransport, Tokio1Executor};
 use crate::error::{Error, Result};
 use crate::model::{AccountConfig, Security};
 
-fn transport(account: &AccountConfig, password: &str) -> Result<AsyncSmtpTransport<Tokio1Executor>> {
+async fn transport(account: &AccountConfig, password: &str) -> Result<AsyncSmtpTransport<Tokio1Executor>> {
     let ep = &account.smtp;
+    // Find a reachable address first (IPv6 and IPv4 in parallel); lettre
+    // then connects to it while TLS still checks the host name.
+    let address =
+        crate::net::connect_tcp(&ep.host, ep.port).await?.peer_addr().map(|a| a.ip().to_string()).unwrap_or_else(|_| ep.host.clone());
     let params = || {
         TlsParameters::builder(ep.host.clone())
             .dangerous_accept_invalid_certs(ep.accept_invalid_certs)
@@ -24,10 +28,8 @@ fn transport(account: &AccountConfig, password: &str) -> Result<AsyncSmtpTranspo
         Security::StartTls => Tls::Required(params()?),
         Security::None => Tls::None,
     };
-    let mut builder = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(ep.host.clone())
-        .port(ep.port)
-        .tls(tls)
-        .timeout(Some(Duration::from_secs(60)));
+    let mut builder =
+        AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(address).port(ep.port).tls(tls).timeout(Some(Duration::from_secs(60)));
     if account.smtp_auth {
         builder = builder.credentials(Credentials::new(account.username.clone(), password.to_string()));
     }
@@ -42,14 +44,14 @@ pub async fn send(account: &AccountConfig, password: &str, from: &str, recipient
     let from = from.parse()?;
     let to = recipients.iter().map(|r| r.parse()).collect::<std::result::Result<Vec<_>, _>>()?;
     let envelope = Envelope::new(Some(from), to).map_err(|e| Error::invalid("Invalid recipients.").with_detail(e.to_string()))?;
-    let transport = transport(account, password)?;
+    let transport = transport(account, password).await?;
     transport.send_raw(&envelope, raw).await?;
     Ok(())
 }
 
 /// Checks that the server accepts the connection and the credentials.
 pub async fn test(account: &AccountConfig, password: &str) -> Result<()> {
-    let transport = transport(account, password)?;
+    let transport = transport(account, password).await?;
     match transport.test_connection().await {
         Ok(true) => Ok(()),
         Ok(false) => Err(Error::server("The outgoing server did not accept the connection.")),

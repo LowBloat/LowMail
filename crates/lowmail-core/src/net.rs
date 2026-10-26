@@ -65,11 +65,52 @@ impl AsyncWrite for MailStream {
     }
 }
 
+/// Connects to the first address of `host` that answers. Addresses are tried
+/// in parallel, each started 250 ms after the previous one (a simple form of
+/// Happy Eyeballs, RFC 8305), so a broken IPv6 route does not delay IPv4.
 pub async fn connect_tcp(host: &str, port: u16) -> Result<TcpStream> {
-    let stream = tokio::time::timeout(CONNECT_TIMEOUT, TcpStream::connect((host, port)))
+    let attempt = async {
+        let addrs: Vec<std::net::SocketAddr> = tokio::net::lookup_host((host, port))
+            .await
+            .map_err(|e| Error::new(ErrorKind::Network, format!("The server name {host} was not found.")).with_detail(e.to_string()))?
+            .collect();
+        // Alternate families: v6, v4, v6, v4...
+        let (v6, v4): (Vec<_>, Vec<_>) = addrs.into_iter().partition(|a| a.is_ipv6());
+        let mut ordered = Vec::new();
+        let (mut a, mut b) = (v6.into_iter(), v4.into_iter());
+        loop {
+            match (a.next(), b.next()) {
+                (None, None) => break,
+                (x, y) => ordered.extend(x.into_iter().chain(y)),
+            }
+        }
+        if ordered.is_empty() {
+            return Err(Error::new(ErrorKind::Network, format!("The server name {host} was not found.")));
+        }
+        let mut tasks = tokio::task::JoinSet::new();
+        let mut last_error = None;
+        for (i, addr) in ordered.into_iter().enumerate() {
+            tasks.spawn(async move {
+                tokio::time::sleep(Duration::from_millis(250 * i as u64)).await;
+                TcpStream::connect(addr).await
+            });
+        }
+        while let Some(done) = tasks.join_next().await {
+            match done {
+                Ok(Ok(stream)) => {
+                    tasks.abort_all();
+                    return Ok(stream);
+                }
+                Ok(Err(e)) => last_error = Some(e),
+                Err(_) => {}
+            }
+        }
+        let detail = last_error.map(|e| e.to_string()).unwrap_or_default();
+        Err(Error::new(ErrorKind::Network, format!("Could not connect to {host}:{port}.")).with_detail(detail))
+    };
+    let stream = tokio::time::timeout(CONNECT_TIMEOUT, attempt)
         .await
-        .map_err(|_| Error::new(ErrorKind::Network, format!("{host}:{port} did not answer in time.")))?
-        .map_err(|e| Error::new(ErrorKind::Network, format!("Could not connect to {host}:{port}.")).with_detail(e.to_string()))?;
+        .map_err(|_| Error::new(ErrorKind::Network, format!("{host}:{port} did not answer in time.")))??;
     let _ = stream.set_nodelay(true);
     Ok(stream)
 }
