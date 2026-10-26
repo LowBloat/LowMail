@@ -1,24 +1,27 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { Spinner, Toaster } from "@codeatlasdev/ui";
-	import { isDesktop } from "./lib/api";
+	import { isDesktop, isMobile } from "./lib/api";
 	import { app } from "./lib/state/app.svelte";
 	import { t } from "./lib/i18n/index.svelte";
 	import Login from "./lib/components/Login.svelte";
 	import Shell from "./lib/components/Shell.svelte";
 	import DialogHost from "./lib/components/DialogHost.svelte";
 	import TitleBar from "./lib/components/desktop/TitleBar.svelte";
+	import UpdateDialog from "./lib/components/desktop/UpdateDialog.svelte";
+	import { updates } from "./lib/state/updates.svelte";
 	import AccountEditor from "./lib/components/desktop/AccountEditor.svelte";
 	import PasswordPrompt from "./lib/components/desktop/PasswordPrompt.svelte";
 	import { windowFrame } from "./lib/state/window-frame.svelte";
 
 	onMount(() => {
 		void app.init().then(() => requestAnimationFrame(() => windowFrame.painted()));
+		updates.start();
 	});
 </script>
 
 <div class="lm-root">
-	{#if isDesktop}
+	{#if isDesktop && !isMobile}
 		<TitleBar />
 	{/if}
 	<main class="lm-main">
@@ -45,6 +48,9 @@
 {/if}
 
 <DialogHost />
+{#if updates.supported}
+	<UpdateDialog />
+{/if}
 <Toaster />
 
 <style>

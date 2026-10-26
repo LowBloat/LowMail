@@ -1,16 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window permissions",
-  "windows": ["main"],
+  "description": "Main window permissions on every platform",
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
-    "core:window:allow-minimize",
-    "core:window:allow-toggle-maximize",
-    "core:window:allow-close",
-    "core:window:allow-start-dragging",
     "core:window:allow-set-focus",
-    "core:menu:default",
     "dialog:allow-save",
     "dialog:allow-open",
     "notification:default",

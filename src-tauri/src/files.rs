@@ -1,27 +1,41 @@
 //! Files on disk: attaching, saving attachments and messages, opening
-//! attachments with the system's apps.
+//! attachments with the system's apps. Files go through the fs plugin, which
+//! also reads and writes the `content://` locations Android's pickers return.
 
-use std::path::PathBuf;
+use std::io::Write as _;
 
 use lowmail_core::model::Upload;
 use lowmail_core::service::MailClient;
 use lowmail_core::{Error, Result};
-use tauri::{AppHandle, Manager, State};
+#[cfg(desktop)]
+use tauri::Manager;
+use tauri::{AppHandle, State};
 use tauri_plugin_dialog::{DialogExt, FilePath};
+use tauri_plugin_fs::{FsExt, OpenOptions};
+#[cfg(desktop)]
 use tauri_plugin_opener::OpenerExt;
 
 use crate::AppState;
 
-fn path_of(file: FilePath) -> Result<PathBuf> {
-    file.into_path().map_err(|_| Error::invalid("Unsupported file location."))
-}
-
-async fn ask_save(app: &AppHandle, filename: &str) -> Option<PathBuf> {
+async fn ask_save(app: &AppHandle, filename: &str) -> Option<FilePath> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog().file().set_file_name(filename).save_file(move |path| {
         let _ = tx.send(path);
     });
-    rx.await.ok().flatten().and_then(|p| path_of(p).ok())
+    rx.await.ok().flatten()
+}
+
+/// The name of a picked file: the last part of its path, or of its
+/// (percent-encoded) `content://` address.
+fn file_name(file: &FilePath) -> String {
+    let raw = match file {
+        FilePath::Path(p) => p.file_name().map(|n| n.to_string_lossy().into_owned()),
+        FilePath::Url(u) => {
+            let decoded = percent_encoding::percent_decode_str(u.path()).decode_utf8_lossy().into_owned();
+            decoded.rsplit(['/', ':']).next().map(str::to_string)
+        }
+    };
+    raw.filter(|n| !n.is_empty()).unwrap_or_else(|| "file".into())
 }
 
 /// A file name safe on every system: no separators, reserved characters,
@@ -39,6 +53,7 @@ fn safe_name(name: &str) -> String {
 }
 
 /// File types that run code when opened with their default app.
+#[cfg_attr(mobile, allow(dead_code))]
 fn is_executable(name: &str) -> bool {
     const RISKY: &[&str] = &[
         "exe",
@@ -107,8 +122,17 @@ fn mark_from_internet(path: &std::path::Path) {
     let _ = path;
 }
 
-fn write(path: &PathBuf, bytes: &[u8]) -> Result<()> {
-    std::fs::write(path, bytes).map_err(|e| Error::internal("The file could not be saved.").with_detail(e.to_string()))
+fn write(app: &AppHandle, target: FilePath, bytes: &[u8]) -> Result<()> {
+    let failed = |e: std::io::Error| Error::internal("The file could not be saved.").with_detail(e.to_string());
+    let mut options = OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    let local = target.clone().into_path().ok();
+    let mut file = app.fs().open(target, options).map_err(failed)?;
+    file.write_all(bytes).map_err(failed)?;
+    if let Some(path) = local {
+        mark_from_internet(&path);
+    }
+    Ok(())
 }
 
 /// Picks files with the native dialog and attaches them.
@@ -122,9 +146,8 @@ pub async fn upload_pick(app: AppHandle, state: State<'_, AppState>, account_id:
     let Some(files) = rx.await.ok().flatten() else { return Ok(Vec::new()) };
     let mut out = Vec::new();
     for f in files {
-        let path = path_of(f)?;
-        let bytes = std::fs::read(&path).map_err(|e| Error::not_found("The file could not be read.").with_detail(e.to_string()))?;
-        let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "file".into());
+        let name = file_name(&f);
+        let bytes = app.fs().read(f).map_err(|e| Error::not_found("The file could not be read.").with_detail(e.to_string()))?;
         out.push(client.add_upload(&name, "", bytes)?);
     }
     Ok(out)
@@ -143,16 +166,27 @@ pub async fn attachment_save(
     let client = state.client(account_id.as_deref(), None).await?;
     let (name, _, bytes) = client.attachment(&folder, uid, &part).await?;
     match ask_save(&app, &safe_name(&name)).await {
-        Some(path) => {
-            write(&path, &bytes)?;
-            mark_from_internet(&path);
-            Ok(true)
-        }
+        Some(target) => write(&app, target, &bytes).map(|_| true),
         None => Ok(false),
     }
 }
 
 /// Opens an attachment with the default app, from a private temporary folder.
+/// On Android, where other apps cannot read that folder, it is saved instead.
+#[cfg(mobile)]
+#[tauri::command]
+pub async fn attachment_open(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    account_id: Option<String>,
+    folder: String,
+    uid: u32,
+    part: String,
+) -> Result<()> {
+    attachment_save(app, state, account_id, folder, uid, part).await.map(|_| ())
+}
+
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn attachment_open(
     app: AppHandle,
@@ -178,8 +212,7 @@ pub async fn attachment_open(
         ));
     }
     let path = dir.join(&name);
-    write(&path, &bytes)?;
-    mark_from_internet(&path);
+    write(&app, FilePath::Path(path.clone()), &bytes)?;
     app.opener()
         .open_path(path.to_string_lossy(), None::<&str>)
         .map_err(|e| Error::internal("No app opens this kind of file.").with_detail(e.to_string()))
@@ -196,7 +229,7 @@ pub async fn message_save(
     let client = state.client(account_id.as_deref(), None).await?;
     let raw = client.raw(&folder, uid).await?;
     match ask_save(&app, &safe_name(&MailClient::eml_name(&raw))).await {
-        Some(path) => write(&path, &raw).map(|_| true),
+        Some(target) => write(&app, target, &raw).map(|_| true),
         None => Ok(false),
     }
 }
@@ -204,7 +237,7 @@ pub async fn message_save(
 #[tauri::command]
 pub async fn text_save(app: AppHandle, filename: String, text: String) -> Result<bool> {
     match ask_save(&app, &safe_name(&filename)).await {
-        Some(path) => write(&path, text.as_bytes()).map(|_| true),
+        Some(target) => write(&app, target, text.as_bytes()).map(|_| true),
         None => Ok(false),
     }
 }

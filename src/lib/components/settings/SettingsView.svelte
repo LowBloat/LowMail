@@ -3,6 +3,7 @@
 	import { BookOpen, Filter, Folder, Info, PenLine, Plane, Settings, UserRound, Users } from "@lucide/svelte";
 	import { isDesktop } from "../../api";
 	import { app } from "../../state/app.svelte";
+	import { updates } from "../../state/updates.svelte";
 	import { t } from "../../i18n/index.svelte";
 	import { requestNotificationPermission } from "../../notify";
 	import type { Settings as S } from "../../types";
@@ -154,6 +155,17 @@
 							</details>
 						{/if}
 						<p class="lm-hint">{t("about.license")}</p>
+						{#if updates.supported}
+							<div class="lm-about__update">
+								{#if updates.available}
+									<Button variant="filled" size="sm" onclick={() => (updates.dialogOpen = true)}>{t("updates.available", { version: updates.available.version })}</Button>
+								{:else}
+									<Button variant="outlined" size="sm" loading={updates.checking} onclick={() => updates.check(true)}>{t("updates.check")}</Button>
+								{/if}
+								{#if updates.upToDate}<span class="lm-hint" role="status">{t("updates.upToDate")}</span>{/if}
+								{#if updates.error && !updates.dialogOpen}<span class="lm-hint lm-danger" role="alert">{updates.error}</span>{/if}
+							</div>
+						{/if}
 					</div>
 				</div>
 			{/if}
@@ -216,6 +228,16 @@
 		display: flex;
 		gap: var(--ca-space-6);
 		align-items: flex-start;
+	}
+	.lm-about__update {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--ca-space-3);
+		margin-top: var(--ca-space-3);
+	}
+	.lm-danger {
+		color: var(--lm-danger);
 	}
 	.lm-about p {
 		margin: 0 0 var(--ca-space-2);

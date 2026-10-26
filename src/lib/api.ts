@@ -5,7 +5,10 @@
  */
 import type { AccountConfig, AccountInfo, MailEvent, Upload } from "./types";
 
+/** The native app (Tauri), on a computer or on Android. */
 export const isDesktop = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+/** The native app on a phone or tablet: no window frame, no self-update. */
+export const isMobile = isDesktop && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 export type ErrorKind =
 	| "auth"

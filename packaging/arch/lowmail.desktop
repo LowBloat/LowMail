@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=LowMail
+Comment=Light e-mail client for your own IMAP and SMTP server
+Exec=lowmail-desktop %u
+Icon=lowmail
+Terminal=false
+Type=Application
+Categories=Network;Email;Office;
+Keywords=email;mail;imap;smtp;sieve;webmail;
+MimeType=x-scheme-handler/mailto;
+StartupWMClass=LowMail

@@ -1,7 +1,10 @@
-//! LowMail desktop: the shared engine (`lowmail-core`) behind Tauri commands.
-//! Accounts live in the local database, passwords in the OS credential store.
+//! LowMail app (desktop and Android): the shared engine (`lowmail-core`)
+//! behind Tauri commands. Accounts live in the local database, passwords in
+//! the system's credential store (see `secrets`).
 
 mod files;
+mod secrets;
+mod updates;
 mod window;
 
 use std::collections::{HashMap, HashSet};
@@ -17,33 +20,11 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 /// IMAP connections per account on the desktop.
 const POOL_SIZE: usize = 3;
-const KEYRING_SERVICE: &str = "LowMail";
 
 pub struct AppState {
     store: Arc<Store>,
     clients: tokio::sync::Mutex<HashMap<String, Arc<MailClient>>>,
     watching: Mutex<HashSet<String>>,
-}
-
-fn keyring(id: &str) -> Result<keyring::Entry> {
-    keyring::Entry::new(KEYRING_SERVICE, id)
-        .map_err(|e| Error::internal("The system password store is not available.").with_detail(e.to_string()))
-}
-
-fn stored_password(id: &str) -> Option<String> {
-    keyring(id).ok()?.get_password().ok()
-}
-
-fn remember_password(id: &str, password: &str) -> Result<()> {
-    keyring(id)?
-        .set_password(password)
-        .map_err(|e| Error::internal("The password could not be saved in the system password store.").with_detail(e.to_string()))
-}
-
-fn forget_password(id: &str) {
-    if let Ok(entry) = keyring(id) {
-        let _ = entry.delete_credential();
-    }
 }
 
 impl AppState {
@@ -62,13 +43,13 @@ impl AppState {
         }
         let account = self.account(id)?;
         let typed = password.is_some();
-        let password = match password.or_else(|| stored_password(id)) {
+        let password = match password.or_else(|| secrets::stored(id)) {
             Some(p) => p,
             None => return Err(Error::new(ErrorKind::Auth, "password-required")),
         };
         let client = MailClient::connect(account, password.clone(), self.store.clone(), id.to_string(), POOL_SIZE).await?;
         if typed {
-            let _ = remember_password(id, &password);
+            let _ = secrets::remember(id, &password);
         }
         if let Some(old) = clients.insert(id.to_string(), client.clone()) {
             tokio::spawn(async move { old.close().await });
@@ -112,7 +93,7 @@ async fn account_save(state: State<'_, AppState>, mut account: AccountConfig, pa
         account.id = uuid::Uuid::new_v4().to_string();
     }
     if let Some(p) = password.filter(|p| !p.is_empty()) {
-        remember_password(&account.id, &p)?;
+        secrets::remember(&account.id, &p)?;
     }
     state.store.save_account(&account)?;
     // The identity name follows the account name the first time.
@@ -130,14 +111,14 @@ async fn account_save(state: State<'_, AppState>, mut account: AccountConfig, pa
 #[tauri::command]
 async fn account_delete(state: State<'_, AppState>, id: String) -> Result<()> {
     state.drop_client(&id).await;
-    forget_password(&id);
+    secrets::forget(&id);
     state.store.delete_account(&id)
 }
 
 #[tauri::command]
 async fn account_test(account: AccountConfig, password: Option<String>) -> Result<()> {
     let password =
-        password.filter(|p| !p.is_empty()).or_else(|| stored_password(&account.id)).ok_or_else(|| Error::invalid("Enter the password."))?;
+        password.filter(|p| !p.is_empty()).or_else(|| secrets::stored(&account.id)).ok_or_else(|| Error::invalid("Enter the password."))?;
     lowmail_core::service::test_account(&account, &password).await
 }
 
@@ -154,7 +135,7 @@ async fn account_connect(state: State<'_, AppState>, id: String, password: Optio
 
 #[tauri::command]
 fn account_has_password(id: String) -> bool {
-    stored_password(&id).is_some()
+    secrets::stored(&id).is_some()
 }
 
 #[derive(Clone, Serialize)]
@@ -214,12 +195,15 @@ fn startup_urls(app: AppHandle) -> Vec<String> {
     app.deep_link().get_current().ok().flatten().map(|urls| urls.into_iter().map(|u| u.to_string()).collect()).unwrap_or_default()
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::try_from_env("LOWMAIL_LOG").unwrap_or_else(|_| "warn".into()))
         .init();
+    let policy = updates::UpdatePolicy::detect();
+    #[allow(unused_mut)]
     let mut builder = tauri::Builder::default();
-    #[cfg(any(target_os = "macos", windows, target_os = "linux"))]
+    #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(w) = app.get_webview_window("main") {
@@ -228,9 +212,17 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }));
+        // Signed updates from GitHub Releases (see `updates`).
+        let mut updater = tauri_plugin_updater::Builder::new();
+        if let Some(target) = &policy.target {
+            updater = updater.target(target);
+        }
+        builder = builder.plugin(updater.build());
     }
     builder
+        .manage(policy)
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
@@ -238,6 +230,8 @@ pub fn run() {
         .manage(window::FirstShow::default())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
+            #[cfg(mobile)]
+            secrets::init(dir.join("secrets"));
             let store = Store::open(&dir.join("lowmail.db")).map_err(|e| anyhow_like(e.to_string()))?;
             app.manage(AppState {
                 store: Arc::new(store),
@@ -276,6 +270,7 @@ pub fn run() {
             files::text_save,
             window::window_painted,
             startup_urls,
+            updates::update_policy,
         ])
         .run(tauri::generate_context!())
         .expect("error while running LowMail");

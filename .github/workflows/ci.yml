@@ -28,6 +28,8 @@ jobs:
       - run: bun run check
       - run: bun run lint:ui
       - run: bun test src
+      - name: Release scripts
+        run: python3 -m unittest discover -s .github/scripts -p "test_*.py"
       - run: bun run build
       - uses: actions/upload-artifact@v4
         with:

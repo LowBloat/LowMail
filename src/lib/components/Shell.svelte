@@ -6,10 +6,11 @@
 <script lang="ts">
 	import { onDestroy } from "svelte";
 	import { Avatar, DropdownMenu, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, Tooltip } from "@codeatlasdev/ui";
-	import { Check, LogOut, Mail, Plus, Settings, SquarePen, UserRound, WifiOff } from "@lucide/svelte";
+	import { ArrowUpCircle, Check, LogOut, Mail, Plus, Settings, SquarePen, UserRound, WifiOff } from "@lucide/svelte";
 	import { isDesktop } from "../api";
 	import { app, type View } from "../state/app.svelte";
 	import { compose } from "../state/compose.svelte";
+	import { updates } from "../state/updates.svelte";
 	import { mail } from "../state/mail.svelte";
 	import { errorText, t } from "../i18n/index.svelte";
 	import { initials } from "../format";
@@ -114,6 +115,13 @@
 			</Tooltip>
 		{/each}
 		<div class="lm-spacer"></div>
+		{#if updates.available}
+			<Tooltip content={t("updates.available", { version: updates.available.version })} side="right">
+				<button type="button" class="lm-rail__item lm-rail__update" aria-label={t("updates.available", { version: updates.available.version })} onclick={() => (updates.dialogOpen = true)}>
+					<ArrowUpCircle size={19} />
+				</button>
+			</Tooltip>
+		{/if}
 		{#if !app.online}
 			<Tooltip content={t("status.offline")} side="right">
 				<span class="lm-rail__offline" role="status" aria-label={t("status.offline")}><WifiOff size={16} /></span>
@@ -229,6 +237,9 @@
 		line-height: var(--lm-icon);
 		text-align: center;
 		pointer-events: none;
+	}
+	.lm-rail__update {
+		color: var(--ca-brand-text);
 	}
 	.lm-rail__offline {
 		color: var(--lm-danger);

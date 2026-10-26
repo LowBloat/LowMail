@@ -1,0 +1,27 @@
+# Maintainer: LowBloat <contato@fabioharaujo.com.br>
+# Template: each release publishes a rendered PKGBUILD asset with the real
+# version and checksums (see .github/scripts/render_pkgbuild.py). Do not edit
+# the placeholders.
+pkgname=lowmail-bin
+pkgver=__VERSION__
+pkgrel=1
+pkgdesc="Light e-mail client for your own IMAP and SMTP server"
+arch=('x86_64')
+url="https://github.com/LowBloat/LowMail"
+license=('AGPL-3.0-only')
+depends=('webkit2gtk-4.1' 'gtk3' 'dbus' 'libsecret')
+provides=('lowmail')
+conflicts=('lowmail')
+options=('!strip')
+source=(
+    "lowmail-${pkgver}.tar.gz::https://github.com/LowBloat/LowMail/releases/download/v${pkgver}/LowMail-${pkgver}-linux-x64-portable.tar.gz"
+    "lowmail.desktop::https://raw.githubusercontent.com/LowBloat/LowMail/v${pkgver}/packaging/arch/lowmail.desktop"
+    "lowmail.png::https://raw.githubusercontent.com/LowBloat/LowMail/v${pkgver}/src-tauri/icons/128x128.png"
+)
+sha256sums=('__SHA256_PORTABLE__' '__SHA256_DESKTOP__' '__SHA256_ICON__')
+
+package() {
+    install -Dm755 "${srcdir}/LowMail" "${pkgdir}/usr/bin/lowmail-desktop"
+    install -Dm644 "${srcdir}/lowmail.desktop" "${pkgdir}/usr/share/applications/lowmail.desktop"
+    install -Dm644 "${srcdir}/lowmail.png" "${pkgdir}/usr/share/icons/hicolor/128x128/apps/lowmail.png"
+}

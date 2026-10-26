@@ -41,6 +41,7 @@
 	--lm-bar: 44px;
 	--lm-label-w: 64px;
 	--lm-menu-min-w: 140px;
+	--lm-notes-max-h: min(50vh, 420px);
 	--lm-popover-w: 320px;
 	--lm-form-w: 560px;
 

@@ -1,0 +1,22 @@
+# Maintainer: LowBloat <contato@fabioharaujo.com.br>
+# Built by the release workflow from the binary it just compiled; the
+# checksums are filled in there.
+pkgname=lowmail-bin
+pkgver=__VERSION__
+pkgrel=1
+pkgdesc="Light e-mail client for your own IMAP and SMTP server"
+arch=('x86_64')
+url="https://github.com/LowBloat/LowMail"
+license=('AGPL-3.0-only')
+depends=('webkit2gtk-4.1' 'gtk3' 'dbus' 'libsecret')
+provides=('lowmail')
+conflicts=('lowmail')
+options=('!strip')
+source=('lowmail-desktop' 'lowmail.desktop' 'lowmail.png')
+sha256sums=('__SHA256_BIN__' '__SHA256_DESKTOP__' '__SHA256_ICON__')
+
+package() {
+    install -Dm755 "${srcdir}/lowmail-desktop" "${pkgdir}/usr/bin/lowmail-desktop"
+    install -Dm644 "${srcdir}/lowmail.desktop" "${pkgdir}/usr/share/applications/lowmail.desktop"
+    install -Dm644 "${srcdir}/lowmail.png" "${pkgdir}/usr/share/icons/hicolor/128x128/apps/lowmail.png"
+}

@@ -10,8 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="#run-the-webmail">Webmail</a>
-  · <a href="#desktop-app">Desktop app</a>
+  <a href="#download">Download</a>
+  · <a href="#run-the-webmail">Webmail</a>
+  · <a href="#desktop-and-android-apps">Desktop and Android</a>
   · <a href="#features">Features</a>
   · <a href="#how-it-works">How it works</a>
   · <a href="#development">Development</a>
@@ -30,6 +31,21 @@ One Rust engine (`lowmail-core`) does all the mail work. The same Svelte interfa
 | Sign-in | E-mail and password of the mail server, per browser session | Several accounts, passwords in the OS credential store |
 | Local data | Preferences, identities and contacts per user in SQLite | The same, on the computer |
 | New mail | IMAP IDLE pushed to the browser (Server-Sent Events) | IMAP IDLE, native notifications |
+
+## Download
+
+Every [release](https://github.com/LowBloat/LowMail/releases/latest) has:
+
+| System | Files |
+| --- | --- |
+| Windows | `windows-x64-setup.exe` (installer), `windows-x64.msi`, `windows-x64-portable.zip` |
+| macOS (Apple Silicon and Intel) | `macos-universal.dmg` |
+| Linux | `linux-x64.AppImage`, `linux-x64.deb`, `linux-x64.rpm`, `linux-x64-portable.tar.gz` |
+| Arch Linux | `linux-x86_64.pkg.tar.zst` (`sudo pacman -U`), or the `PKGBUILD` |
+| Android | `android-universal.apk` |
+| Webmail server | `webmail-linux-x64.tar.gz`, `webmail-linux-arm64.tar.gz`, or `ghcr.io/lowbloat/lowmail` |
+
+`SHA256SUMS` lists every file's checksum, and each file has a build provenance attestation (`gh attestation verify <file> --repo LowBloat/LowMail`). The macOS app is not notarized: open it the first time with right click → **Open**.
 
 ## Features
 
@@ -101,16 +117,19 @@ docker compose run --rm -it lowmail check user@example.com --send-to user@exampl
 - Message HTML is cleaned with [ammonia](https://crates.io/crates/ammonia) (no scripts, forms, event handlers or remote styles) and then shown in a sandboxed frame without script permission and with a Content-Security-Policy that blocks remote content unless the reader allows it.
 - Downloads are served as attachments with `nosniff` and a sandbox policy; previews are limited to images, PDF, text, audio and video.
 
-## Desktop app
+## Desktop and Android apps
 
-The desktop app is a Tauri 2 build of the same interface:
+The apps are Tauri 2 builds of the same interface:
 
 ```sh
 bun install
-bun run tauri build
+bun run tauri build                 # desktop
+bun run tauri android build --apk   # Android (needs the Android SDK and NDK)
 ```
 
-The first start asks for the e-mail address and password; LowMail tries the usual host names (`imap.`, `mail.`, `smtp.` and the domain) and ports, checks the sign-in on IMAP and SMTP, and lets you adjust everything under **Server settings**. Passwords go to the Windows Credential Manager, the macOS Keychain or the Secret Service on Linux.
+The first start asks for the e-mail address and password; LowMail tries the usual host names (`imap.`, `mail.`, `smtp.`, the domain and its MX hosts) and ports, keeps the first server whose certificate is valid, checks the sign-in on IMAP and SMTP, and lets you adjust everything under **Server settings**. Passwords go to the Windows Credential Manager, the macOS Keychain or the Secret Service on Linux; on Android, to the app's private storage.
+
+Installed desktop copies (Windows installers, the macOS app, AppImage) update themselves from signed GitHub releases; packages and portable copies show when a new version exists.
 
 ## How it works
 
