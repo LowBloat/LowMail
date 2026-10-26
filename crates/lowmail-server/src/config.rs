@@ -36,6 +36,8 @@ pub struct Config {
     pub trust_proxy: bool,
     /// IMAP connections per signed-in user.
     pub pool_size: usize,
+    /// Sign in to the SMTP server (off for relays that trust the network).
+    pub smtp_auth: bool,
 }
 
 fn env(name: &str) -> Option<String> {
@@ -118,6 +120,7 @@ impl Config {
             product_name: env("PRODUCT_NAME").unwrap_or_else(|| "LowMail".into()),
             trust_proxy: flag("TRUST_PROXY").unwrap_or(false),
             pool_size: env("IMAP_CONNECTIONS").and_then(|v| v.parse().ok()).unwrap_or(3usize).clamp(1, 10),
+            smtp_auth: flag("SMTP_AUTH").unwrap_or(true),
         })
     }
 
@@ -163,7 +166,7 @@ impl Config {
             imap: endpoint(&self.imap),
             smtp: endpoint(&self.smtp),
             sieve: self.sieve.as_ref().map(endpoint),
-            smtp_auth: true,
+            smtp_auth: self.smtp_auth,
         }
     }
 }

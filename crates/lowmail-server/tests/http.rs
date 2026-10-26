@@ -34,6 +34,7 @@ async fn start() -> Env {
         product_name: "LowMail".into(),
         trust_proxy: false,
         pool_size: 2,
+        smtp_auth: true,
     };
     let (router, _) = lowmail_server::build(config).unwrap();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

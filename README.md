@@ -77,6 +77,7 @@ docker compose run --rm -it lowmail check user@example.com --send-to user@exampl
 | `LOWMAIL_IMAP_PORT` / `_SECURITY` | `993` / `tls` | `tls`, `starttls` or `none` (143 for STARTTLS). |
 | `LOWMAIL_SMTP_HOST` | IMAP host | Submission server. |
 | `LOWMAIL_SMTP_PORT` / `_SECURITY` | `587` / `starttls` | `465` with `tls`. |
+| `LOWMAIL_SMTP_AUTH` | `true` | Sign in to the SMTP server; `false` for relays that trust the network. |
 | `LOWMAIL_SIEVE` | `true` | Filters and vacation reply through ManageSieve. |
 | `LOWMAIL_SIEVE_HOST` / `_PORT` / `_SECURITY` | IMAP host / `4190` / `starttls` | |
 | `LOWMAIL_DOMAIN` | | Domain added to user names typed without `@`. |
