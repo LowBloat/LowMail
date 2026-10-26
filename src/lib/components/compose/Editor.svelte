@@ -122,9 +122,12 @@ a{color:#3d5c00}
 
 	$effect(() => {
 		// Reload the body when it was replaced from outside (identity, format).
-		if (doc && version !== loadedVersion) {
-			doc.body.innerHTML = html;
-			loadedVersion = version;
+		// Read the props first: `doc` is not reactive, so a first run before
+		// the frame loads would otherwise leave this effect without dependencies.
+		const next = { version, html };
+		if (doc && next.version !== loadedVersion) {
+			doc.body.innerHTML = next.html;
+			loadedVersion = next.version;
 		}
 	});
 

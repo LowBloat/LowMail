@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { Avatar, Button, EmptyState, IconButton, Stack, TextArea, TextField, Tooltip, toast } from "@codeatlasdev/ui";
-	import { Download, Mail, Plus, Trash2, Upload, UserRound, Users, X } from "@lucide/svelte";
+	import { ArrowLeft, Download, Mail, Plus, Trash2, Upload, UserRound, Users, X } from "@lucide/svelte";
 	import { call, saveText } from "../../api";
 	import { compose } from "../../state/compose.svelte";
 	import { confirm } from "../../state/dialogs.svelte";
@@ -18,6 +18,9 @@
 	let saving = $state(false);
 	let loading = $state(true);
 	let importInput: HTMLInputElement | undefined = $state();
+	let width = $state(1200);
+	/** On phones the open contact replaces the list, as in the mail view. */
+	const phone = $derived(width < 680);
 
 	function blank(): Contact {
 		return { id: "", name: "", emails: [""], phones: [], organization: "", jobTitle: "", notes: "", birthday: null, groups: group.startsWith("*") ? [] : [group], collected: false, updatedAt: 0 };
@@ -116,7 +119,7 @@
 	let groupsText = $derived(editing?.groups.join(", ") ?? "");
 </script>
 
-<div class="lm-contacts">
+<div class="lm-contacts" bind:clientWidth={width}>
 	<aside class="lm-contacts__groups">
 		<div class="lm-bar"><span class="lm-bar__title">{t("contacts.title")}</span></div>
 		<nav class="lm-contacts__nav">
@@ -128,7 +131,7 @@
 		</nav>
 	</aside>
 
-	<section class="lm-pane lm-contacts__list">
+	<section class="lm-pane lm-contacts__list" class:lm-contacts__list--full={phone} hidden={phone && !!editing}>
 		<div class="lm-bar">
 			<input class="lm-input lm-contacts__search" type="search" placeholder={t("contacts.search")} aria-label={t("contacts.search")} bind:value={query} />
 			<Tooltip content={t("contacts.new")}><IconButton variant="filled" size="sm" aria-label={t("contacts.new")} onclick={create}><Plus size={16} /></IconButton></Tooltip>
@@ -154,9 +157,12 @@
 		</ul>
 	</section>
 
-	<section class="lm-pane lm-contacts__detail">
+	<section class="lm-pane lm-contacts__detail" hidden={phone && !editing}>
 		{#if editing}
 			<div class="lm-bar">
+				{#if phone}
+					<IconButton variant="text" size="sm" aria-label={t("action.back")} onclick={() => ((editing = null), (selectedId = null))}><ArrowLeft size={17} /></IconButton>
+				{/if}
 				<span class="lm-bar__title">{editing.id ? editing.name || editing.emails[0] : t("contacts.new")}</span>
 				<span class="lm-spacer"></span>
 				{#if editing.id && editing.emails[0]}
@@ -348,6 +354,14 @@
 		flex: 1;
 		display: grid;
 		place-items: center;
+	}
+	.lm-contacts__list--full {
+		flex: 1;
+		width: auto;
+		border-right: 0;
+	}
+	.lm-pane[hidden] {
+		display: none;
 	}
 	@media (max-width: 980px) {
 		.lm-contacts__groups {

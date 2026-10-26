@@ -190,7 +190,8 @@ class ComposeState {
 			} else if (sig) {
 				const quote = doc.querySelector("blockquote, .lm-quote-header, .lm-forward");
 				if (quote && app.settings.replyOnTop) quote.insertAdjacentHTML("beforebegin", `${sig}<p><br></p>`);
-				else doc.body.insertAdjacentHTML(app.settings.replyOnTop ? "afterbegin" : "beforeend", `<p><br></p>${sig}`);
+				// Without a quote to sign above, the signature closes the text.
+				else doc.body.insertAdjacentHTML("beforeend", `<p><br></p>${sig}`);
 			}
 			d.html = doc.body.innerHTML;
 		} else {
