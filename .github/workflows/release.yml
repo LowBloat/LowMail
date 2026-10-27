@@ -282,7 +282,7 @@ jobs:
           mkdir -p out
           apk="out/LowMail-${VERSION}-android-universal.apk"
           "$tools/zipalign" -p -f 4 "$unsigned" "$RUNNER_TEMP/aligned.apk"
-          "$tools/apksigner" sign --ks "$keystore" --ks-key-alias lowmail \
+          "$tools/apksigner" sign --ks "$keystore" --ks-key-alias lowmail --v4-signing-enabled false \
             --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEYSTORE_PASSWORD \
             --out "$apk" "$RUNNER_TEMP/aligned.apk"
           rm -f "$keystore"
