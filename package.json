@@ -1,6 +1,6 @@
 {
   "name": "lowmail",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "LowMail: a light e-mail client for your own mail server, on the desktop and in the browser.",
   "homepage": "https://github.com/LowBloat/LowMail",
   "repository": {
