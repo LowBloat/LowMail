@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { Button, FormSection, SegmentedControl, Select, SettingItem, Switch } from "@codeatlasdev/ui";
+	import { Button, FormSection, SegmentedControl, Select, SettingItem, Switch, toast } from "@codeatlasdev/ui";
 	import { BookOpen, Filter, Folder, Info, PenLine, Plane, Settings, UserRound, Users } from "@lucide/svelte";
-	import { isDesktop } from "../../api";
+	import { desktop, isDesktop, isMobile } from "../../api";
 	import { app } from "../../state/app.svelte";
 	import { updates } from "../../state/updates.svelte";
-	import { t } from "../../i18n/index.svelte";
+	import { errorText, t } from "../../i18n/index.svelte";
 	import { requestNotificationPermission } from "../../notify";
-	import type { Settings as S } from "../../types";
+	import type { DesktopSettings, Settings as S } from "../../types";
 	import IdentitiesSettings from "./IdentitiesSettings.svelte";
 	import FoldersSettings from "./FoldersSettings.svelte";
 	import FiltersSettings from "./FiltersSettings.svelte";
@@ -42,6 +42,23 @@
 			return;
 		}
 		set("notifications", on);
+	}
+
+	// Tray and start with the system belong to the app, not to the account.
+	const hasTray = isDesktop && !isMobile;
+	let system = $state<DesktopSettings | null>(null);
+	if (hasTray) void desktop.settings().then((v) => (system = v), () => {});
+
+	async function setSystem<K extends keyof DesktopSettings>(key: K, on: boolean) {
+		if (!system) return;
+		const previous = system[key];
+		system[key] = on;
+		try {
+			await (key === "closeToTray" ? desktop.setCloseToTray(on) : desktop.setAutostart(on));
+		} catch (e) {
+			system[key] = previous;
+			toast.error(errorText(e));
+		}
 	}
 
 	const opts = (pairs: [string, string][]) => pairs.map(([value, label]) => ({ value, label }));
@@ -81,6 +98,16 @@
 						<Switch checked={s.notifications} aria-label={t("settings.notifications.new")} onchange={toggleNotifications} />
 					</SettingItem>
 				</FormSection>
+				{#if system}
+					<FormSection title={t("settings.system")} layout="list">
+						<SettingItem label={t("settings.closeToTray")} description={t("settings.closeToTray.hint")}>
+							<Switch checked={system.closeToTray} aria-label={t("settings.closeToTray")} onchange={(v) => setSystem("closeToTray", v)} />
+						</SettingItem>
+						<SettingItem label={t("settings.autostart")} description={t(system.closeToTray ? "settings.autostart.tray" : "settings.autostart.hint")}>
+							<Switch checked={system.autostart} aria-label={t("settings.autostart")} onchange={(v) => setSystem("autostart", v)} />
+						</SettingItem>
+					</FormSection>
+				{/if}
 			{:else if section === "reading"}
 				<h2>{t("settings.reading")}</h2>
 				<FormSection title={t("settings.reading.messages")} layout="list">

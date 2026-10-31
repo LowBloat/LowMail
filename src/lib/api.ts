@@ -3,7 +3,7 @@
  * commands; the browser through the web server's HTTP API. Both run the same
  * `lowmail_core::rpc::dispatch`, so the UI never needs to know which.
  */
-import type { AccountConfig, AccountInfo, MailEvent, Upload } from "./types";
+import type { AccountConfig, AccountInfo, DesktopSettings, MailEvent, Upload } from "./types";
 
 /** The native app (Tauri), on a computer or on Android. */
 export const isDesktop = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -144,6 +144,11 @@ export const desktop = {
 	discover: (email: string) => desktop.invoke<AccountConfig>("account_discover", { email }),
 	connect: (id: string, password: string | null = null) => desktop.invoke<AccountInfo>("account_connect", { id, password }),
 	hasPassword: (id: string) => desktop.invoke<boolean>("account_has_password", { id }),
+	// Tray and start with the system (desktop only, not Android).
+	settings: () => desktop.invoke<DesktopSettings>("desktop_settings"),
+	setCloseToTray: (on: boolean) => desktop.invoke<void>("set_close_to_tray", { on }),
+	setAutostart: (on: boolean) => desktop.invoke<void>("set_autostart", { on }),
+	setTrayLanguage: (language: string) => desktop.invoke<void>("set_tray_language", { language }),
 };
 
 // ---- files ----

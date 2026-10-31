@@ -14,14 +14,24 @@ pub struct FirstShow(AtomicBool);
 /// page that fails to load never leaves an invisible app.
 const FIRST_SHOW_FALLBACK: Duration = Duration::from_secs(5);
 
+/// Brings the main window back from the tray, the taskbar or behind others.
+pub fn show<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
 fn show_first_time<R: Runtime>(app: &AppHandle<R>) {
     if app.state::<FirstShow>().0.swap(true, Ordering::SeqCst) {
         return;
     }
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.set_focus();
+    #[cfg(desktop)]
+    if crate::tray::starts_hidden(app) {
+        return;
     }
+    show(app);
 }
 
 /// Shows the window after `FIRST_SHOW_FALLBACK` if the page has not.

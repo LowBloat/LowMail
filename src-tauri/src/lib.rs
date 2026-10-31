@@ -4,6 +4,8 @@
 
 mod files;
 mod secrets;
+#[cfg(desktop)]
+mod tray;
 mod updates;
 mod window;
 
@@ -205,13 +207,18 @@ pub fn run() {
     let mut builder = tauri::Builder::default();
     #[cfg(desktop)]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.unminimize();
-                let _ = w.show();
-                let _ = w.set_focus();
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| window::show(app)));
+        builder = builder
+            .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec![tray::AUTOSTART_ARG])));
+        builder = builder.on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && window.label() == "main"
+                && tray::closes_to_tray(window.app_handle())
+            {
+                api.prevent_close();
+                let _ = window.hide();
             }
-        }));
+        });
         // Signed updates from GitHub Releases (see `updates`).
         let mut updater = tauri_plugin_updater::Builder::new();
         if let Some(target) = &policy.target {
@@ -238,6 +245,8 @@ pub fn run() {
                 clients: tokio::sync::Mutex::new(HashMap::new()),
                 watching: Mutex::new(HashSet::new()),
             });
+            #[cfg(desktop)]
+            tray::setup(app.handle())?;
             window::start_fallback(app.handle());
             // mailto: links opened while LowMail runs reach the page as `open-url`.
             use tauri_plugin_deep_link::DeepLinkExt;
@@ -246,9 +255,7 @@ pub fn run() {
                 for url in event.urls() {
                     let _ = handle.emit("open-url", url.to_string());
                 }
-                if let Some(w) = handle.get_webview_window("main") {
-                    let _ = w.set_focus();
-                }
+                window::show(&handle);
             });
             Ok(())
         })
@@ -271,9 +278,24 @@ pub fn run() {
             window::window_painted,
             startup_urls,
             updates::update_policy,
+            #[cfg(desktop)]
+            tray::desktop_settings,
+            #[cfg(desktop)]
+            tray::set_close_to_tray,
+            #[cfg(desktop)]
+            tray::set_autostart,
+            #[cfg(desktop)]
+            tray::set_tray_language,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running LowMail");
+        .build(tauri::generate_context!())
+        .expect("error while running LowMail")
+        .run(|_app, _event| {
+            // On macOS the Dock icon reopens a window hidden in the tray.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event {
+                window::show(_app);
+            }
+        });
 }
 
 fn anyhow_like(message: String) -> Box<dyn std::error::Error> {

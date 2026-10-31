@@ -282,6 +282,12 @@ export interface FilterState {
 	extensions: string[];
 }
 
+/** Tray and start with the system: for the whole desktop app, not per account. */
+export interface DesktopSettings {
+	closeToTray: boolean;
+	autostart: boolean;
+}
+
 /** Preferences, stored per account on the server or in the desktop database. */
 export interface Settings {
 	language: "auto" | "pt-BR" | "en";

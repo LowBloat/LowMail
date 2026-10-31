@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { Spinner, Toaster } from "@codeatlasdev/ui";
-	import { isDesktop, isMobile } from "./lib/api";
+	import { desktop, isDesktop, isMobile } from "./lib/api";
 	import { app } from "./lib/state/app.svelte";
-	import { t } from "./lib/i18n/index.svelte";
+	import { i18n, t } from "./lib/i18n/index.svelte";
 	import Login from "./lib/components/Login.svelte";
 	import Shell from "./lib/components/Shell.svelte";
 	import DialogHost from "./lib/components/DialogHost.svelte";
@@ -17,6 +17,11 @@
 	onMount(() => {
 		void app.init().then(() => requestAnimationFrame(() => windowFrame.painted()));
 		updates.start();
+	});
+
+	// The tray menu lives in the native process; keep it in the page's language.
+	$effect(() => {
+		if (isDesktop && !isMobile) void desktop.setTrayLanguage(i18n.lang).catch(() => {});
 	});
 </script>
 
