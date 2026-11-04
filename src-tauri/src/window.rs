@@ -17,6 +17,7 @@ const FIRST_SHOW_FALLBACK: Duration = Duration::from_secs(5);
 /// Brings the main window back from the tray, the taskbar or behind others.
 pub fn show<R: Runtime>(app: &AppHandle<R>) {
     if let Some(window) = app.get_webview_window("main") {
+        #[cfg(desktop)]
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
