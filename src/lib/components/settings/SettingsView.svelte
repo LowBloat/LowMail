@@ -184,8 +184,8 @@
 						<p class="lm-hint">{t("about.license")}</p>
 						{#if updates.supported}
 							<div class="lm-about__update">
-								{#if updates.available}
-									<Button variant="filled" size="sm" onclick={() => (updates.dialogOpen = true)}>{t("updates.available", { version: updates.available.version })}</Button>
+								{#if updates.offered}
+									<Button variant="filled" size="sm" onclick={() => (updates.dialogOpen = true)}>{updates.label}</Button>
 								{:else}
 									<Button variant="outlined" size="sm" loading={updates.checking} onclick={() => updates.check(true)}>{t("updates.check")}</Button>
 								{/if}

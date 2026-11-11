@@ -115,9 +115,9 @@
 			</Tooltip>
 		{/each}
 		<div class="lm-spacer"></div>
-		{#if updates.available}
-			<Tooltip content={t("updates.available", { version: updates.available.version })} side="right">
-				<button type="button" class="lm-rail__item lm-rail__update" aria-label={t("updates.available", { version: updates.available.version })} onclick={() => (updates.dialogOpen = true)}>
+		{#if updates.offered}
+			<Tooltip content={updates.label} side="right">
+				<button type="button" class="lm-rail__item lm-rail__update" aria-label={updates.label} onclick={() => (updates.dialogOpen = true)}>
 					<ArrowUpCircle size={19} />
 				</button>
 			</Tooltip>

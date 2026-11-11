@@ -66,6 +66,8 @@
 				<Alert severity="info">{updates.manualHint}</Alert>
 			{:else if compose.active && !updates.installing}
 				<Alert severity="warning">{t("updates.draftOpen")}</Alert>
+			{:else if updates.ready && !updates.installing}
+				<Alert severity="info">{t("updates.readyHint")}</Alert>
 			{/if}
 			{#if updates.installing}
 				<Progress
@@ -83,7 +85,7 @@
 			{#if updates.policy?.canInstall}
 				<Button variant="filled" loading={updates.installing} onclick={() => updates.install()}>
 					{#snippet leading()}<RefreshCw size={15} />{/snippet}
-					{t("updates.install")}
+					{updates.ready ? t("updates.restart") : t("updates.install")}
 				</Button>
 			{:else}
 				<Button variant="filled" onclick={() => updates.download()}>
