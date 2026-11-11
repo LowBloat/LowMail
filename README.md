@@ -130,7 +130,7 @@ bun run tauri android build --apk   # Android (needs the Android SDK and NDK)
 
 The first start asks for the e-mail address and password; LowMail tries the usual host names (`imap.`, `mail.`, `smtp.`, the domain and its MX hosts) and ports, keeps the first server whose certificate is valid, checks the sign-in on IMAP and SMTP, and lets you adjust everything under **Server settings**. Passwords go to the Windows Credential Manager, the macOS Keychain or the Secret Service on Linux; on Android, to the app's private storage.
 
-Installed desktop copies (Windows installers, the macOS app, AppImage) update themselves from signed GitHub releases; packages and portable copies show when a new version exists.
+Installed desktop copies (Windows installers, the macOS app, AppImage, .deb and .rpm) update themselves from signed GitHub releases: the update downloads in the background and a restart installs it (.deb and .rpm ask for the administrator password). The Arch package and portable copies show when a new version exists.
 
 ## How it works
 
