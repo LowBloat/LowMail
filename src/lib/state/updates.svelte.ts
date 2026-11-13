@@ -1,6 +1,6 @@
 /**
  * Automatic updates from GitHub Releases. The app checks shortly after it
- * opens, every few minutes and whenever the window regains focus. A copy that
+ * opens, every minute and whenever the window comes back. A copy that
  * can update itself (Windows installer, macOS app, writable AppImage, .deb or
  * .rpm) downloads the signed update in the background; once it is verified and
  * ready, the rail offers "restart to update", which installs it right away.
@@ -22,9 +22,23 @@ export interface UpdatePolicy {
 
 const RELEASES_URL = "https://github.com/LowBloat/LowMail/releases/latest";
 const FIRST_CHECK_MS = 5_000;
-const CHECK_EVERY_MS = 10 * 60 * 1000;
+/** The manifest is a small file on GitHub; checking every minute means a new
+ * release reaches open windows within a minute of being published. */
+const CHECK_EVERY_MS = 60 * 1000;
 /** Focus comes and goes quickly; at most one extra check per this long. */
-const FOCUS_GAP_MS = 2 * 60 * 1000;
+const FOCUS_GAP_MS = 15 * 1000;
+/** A check that hangs (a network that changed under it, a sleeping laptop)
+ * would otherwise keep every later check waiting. */
+const CHECK_TIMEOUT_MS = 30 * 1000;
+/** The same for a stalled background download; installing from the dialog
+ * downloads again without a limit. */
+const DOWNLOAD_TIMEOUT_MS = 15 * 60 * 1000;
+
+/** Each check holds the update (and its download) on the Rust side until
+ * closed; checks run every minute, so the ones not kept are released. */
+function discard(update: Update | null) {
+	update?.close().catch(() => {});
+}
 
 class Updates {
 	currentVersion = $state("");
@@ -78,14 +92,24 @@ class Updates {
 			.catch(() => {});
 		setTimeout(() => this.check(false), FIRST_CHECK_MS);
 		this.timer = setInterval(() => this.check(false), CHECK_EVERY_MS);
-		window.addEventListener("focus", () => {
+		const checkSoon = () => {
 			if (Date.now() - this.lastCheck > FOCUS_GAP_MS) void this.check(false);
+		};
+		window.addEventListener("focus", checkSoon);
+		// The window can come back from the tray or another desktop without focus.
+		document.addEventListener("visibilitychange", () => {
+			if (document.visibilityState === "visible") checkSoon();
 		});
 	}
 
 	/** `interactive`: the user asked, so report "up to date" and errors. */
 	async check(interactive: boolean): Promise<void> {
-		if (!this.supported || this.checking || this.downloading || this.installing) return;
+		if (!this.supported) return;
+		if (this.checking || this.downloading || this.installing) {
+			// Still downloading what was found: show it rather than nothing.
+			if (interactive && this.available) this.dialogOpen = true;
+			return;
+		}
 		this.checking = true;
 		this.lastCheck = Date.now();
 		if (interactive) this.error = null;
@@ -95,19 +119,24 @@ class Updates {
 			// Copies that cannot install still read the AppImage entry to learn
 			// the version and notes.
 			const target = this.policy.target ?? (this.policy.canInstall ? undefined : "linux-x86_64-appimage");
-			const update = await check(target ? { target } : undefined);
+			const update = await check({ timeout: CHECK_TIMEOUT_MS, ...(target ? { target } : {}) });
 			if (!update) {
+				discard(this.update);
 				this.update = null;
 				this.available = null;
 				this.ready = false;
 				if (interactive) this.upToDate = true;
 				return;
 			}
-			// Already downloaded this one: nothing to do until the restart.
-			if (this.ready && this.available?.version === update.version) {
+			// Already found this one: nothing to do until the restart. A background
+			// download that failed is not repeated every minute; installing from
+			// the dialog downloads it again.
+			if (this.update && this.available?.version === update.version) {
+				discard(update);
 				if (interactive) this.dialogOpen = true;
 				return;
 			}
+			discard(this.update);
 			this.update = update;
 			this.ready = false;
 			this.available = { version: update.version, notes: update.body ?? "" };
@@ -128,13 +157,16 @@ class Updates {
 		let total = 0;
 		let received = 0;
 		try {
-			await update.download((event) => {
-				if (event.event === "Started") total = event.data.contentLength ?? 0;
-				else if (event.event === "Progress") {
-					received += event.data.chunkLength;
-					this.progress = total > 0 ? Math.min(1, received / total) : null;
-				}
-			});
+			await update.download(
+				(event) => {
+					if (event.event === "Started") total = event.data.contentLength ?? 0;
+					else if (event.event === "Progress") {
+						received += event.data.chunkLength;
+						this.progress = total > 0 ? Math.min(1, received / total) : null;
+					}
+				},
+				{ timeout: DOWNLOAD_TIMEOUT_MS },
+			);
 			if (this.update === update) this.ready = true;
 		} catch {
 			// The dialog falls back to download-and-install in one go.
