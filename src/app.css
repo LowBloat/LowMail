@@ -242,10 +242,13 @@ body {
 	inset: calc((var(--lm-resizer) - 1px) / 2) 0;
 }
 
-/* Visible keyboard focus everywhere. */
-:focus-visible {
-	outline: var(--lm-stroke) solid var(--lm-signal);
-	outline-offset: calc(-1 * var(--lm-stroke));
+/* Visible keyboard focus everywhere. Layered so kit components that draw focus on
+   their own frame (text fields, selects, text areas) keep the inner control clean. */
+@layer ca.base {
+	:focus-visible {
+		outline: var(--lm-stroke) solid var(--lm-signal);
+		outline-offset: calc(-1 * var(--lm-stroke));
+	}
 }
 
 kbd,
